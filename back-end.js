@@ -55,185 +55,10 @@ function sendError(res, message = '操作失败', status = 500) {
     });
 }
 
-// 数据库初始化函数
-async function initDatabase() {
-    try {
-        // 创建数据库（如果不存在）
-        const connection = await mysql.createConnection({
-            host: dbConfig.host,
-            user: dbConfig.user,
-            password: dbConfig.password
-        });
-        
-        await connection.execute(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`);
-        await connection.end();
-        
-        console.log('数据库创建成功');
-        
-        // 创建表格
-        await createTables();
-        
-        // 插入测试数据
-        await insertTestData();
-        
-        console.log('数据库初始化完成');
-    } catch (error) {
-        console.error('数据库初始化失败:', error);
-        throw error;
-    }
-}
+// 引入数据库管理模块
+const { initDatabase, insertTestData } = require('./manage_database');
 
-// 创建表格
-async function createTables() {
-    const connection = await pool.getConnection();
-    try {
-        // 创建火车表
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS trains (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(10) NOT NULL,
-                from_station VARCHAR(50) NOT NULL,
-                to_station VARCHAR(50) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )
-        `);
-        
-        // 创建席位类型表
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS seat_types (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                train_id INT NOT NULL,
-                type VARCHAR(20) NOT NULL,
-                price DECIMAL(10,2) NOT NULL,
-                available_seats INT NOT NULL,
-                total_seats INT NOT NULL,
-                FOREIGN KEY (train_id) REFERENCES trains(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // 创建经停站表
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS stops (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                train_id INT NOT NULL,
-                station VARCHAR(50) NOT NULL,
-                seat_type VARCHAR(20) NOT NULL,
-                price DECIMAL(10,2) NOT NULL,
-                FOREIGN KEY (train_id) REFERENCES trains(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // 创建订单表
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS orders (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                train_id INT NOT NULL,
-                from_station VARCHAR(50) NOT NULL,
-                to_station VARCHAR(50) NOT NULL,
-                seat_type VARCHAR(20) NOT NULL,
-                passenger_name VARCHAR(100) NOT NULL,
-                passenger_id VARCHAR(20) NOT NULL,
-                price DECIMAL(10,2) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (train_id) REFERENCES trains(id) ON DELETE CASCADE
-            )
-        `);
-        
-        // 创建用户表
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                id_number VARCHAR(20) NOT NULL UNIQUE,
-                phone VARCHAR(20),
-                email VARCHAR(100),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        
-        console.log('数据表创建完成');
-    } finally {
-        connection.release();
-    }
-}
 
-// 插入测试数据
-async function insertTestData() {
-    const connection = await pool.getConnection();
-    try {
-        // 检查是否已有数据
-        const [rows] = await connection.execute('SELECT COUNT(*) as count FROM trains');
-        if (rows[0].count > 0) {
-            console.log('测试数据已存在，跳过插入');
-            return;
-        }
-        
-        // 插入火车数据
-        await connection.execute(`
-            INSERT INTO trains (name, from_station, to_station) VALUES
-            ('G101', '北京', '上海'),
-            ('G102', '上海', '北京'),
-            ('D201', '广州', '深圳'),
-            ('K301', '西安', '成都')
-        `);
-        
-        // 插入席位类型数据
-        const seatTypesData = [
-            [1, '二等座', 500, 80, 80],
-            [1, '一等座', 800, 20, 20],
-            [1, '商务座', 1500, 10, 10],
-            [2, '二等座', 500, 80, 80],
-            [2, '一等座', 800, 20, 20],
-            [2, '商务座', 1500, 10, 10],
-            [3, '二等座', 50, 100, 100],
-            [3, '一等座', 80, 30, 30],
-            [4, '硬座', 150, 200, 200],
-            [4, '硬卧', 300, 50, 50],
-            [4, '软卧', 450, 20, 20]
-        ];
-        
-        for (const seatType of seatTypesData) {
-            await connection.execute(
-                'INSERT INTO seat_types (train_id, type, price, available_seats, total_seats) VALUES (?, ?, ?, ?, ?)',
-                seatType
-            );
-        }
-        
-        // 插入经停站数据
-        const stopsData = [
-            [1, '天津', '二等座', 100],
-            [1, '天津', '一等座', 160],
-            [1, '天津', '商务座', 300],
-            [1, '济南', '二等座', 200],
-            [1, '济南', '一等座', 320],
-            [1, '济南', '商务座', 600],
-            [1, '南京', '二等座', 350],
-            [1, '南京', '一等座', 560],
-            [1, '南京', '商务座', 1050],
-            [2, '南京', '二等座', 150],
-            [2, '南京', '一等座', 240],
-            [2, '南京', '商务座', 450],
-            [2, '济南', '二等座', 300],
-            [2, '济南', '一等座', 480],
-            [2, '济南', '商务座', 900],
-            [2, '天津', '二等座', 400],
-            [2, '天津', '一等座', 640],
-            [2, '天津', '商务座', 1200]
-        ];
-        
-        for (const stop of stopsData) {
-            await connection.execute(
-                'INSERT INTO stops (train_id, station, seat_type, price) VALUES (?, ?, ?, ?)',
-                stop
-            );
-        }
-        
-        console.log('测试数据插入完成');
-    } finally {
-        connection.release();
-    }
-}
 
 // API路由
 
@@ -242,59 +67,103 @@ app.get('/', (req, res) => {
     res.redirect('/mysql-test.html');
 });
 
+
 // 查询火车信息
 app.get('/trains', async (req, res) => {
     try {
-        const { from, to } = req.query;
+        const { from, to, date } = req.query;
+        const queryDate = date || '2025-07-17'; // 默认查询2025-07-17的日期
+        
+        console.log(`查询火车信息 - 日期: ${queryDate}, 出发站: ${from || '全部'}, 到达站: ${to || '全部'}`);
         
         let query = `
-            SELECT 
+            SELECT DISTINCT
                 t.id, t.name, t.from_station, t.to_station,
-                st.type, st.price, st.available_seats, st.total_seats
+                COALESCE(ts.departure_date, ?) as departure_date,
+                GROUP_CONCAT(DISTINCT c.seat_type) as seat_types
             FROM trains t
-            JOIN seat_types st ON t.id = st.train_id
+            LEFT JOIN train_schedules ts ON t.id = ts.train_id AND ts.departure_date = ?
+            JOIN carriages c ON t.id = c.train_id
+            WHERE c.train_id IS NOT NULL
         `;
         
-        const params = [];
+        const params = [queryDate, queryDate];
         
         if (from && to) {
-            query += ' WHERE t.from_station = ? AND t.to_station = ?';
+            query += ' AND t.from_station = ? AND t.to_station = ?';
             params.push(from, to);
         } else if (from) {
-            query += ' WHERE t.from_station = ?';
+            query += ' AND t.from_station = ?';
             params.push(from);
         } else if (to) {
-            query += ' WHERE t.to_station = ?';
+            query += ' AND t.to_station = ?';
             params.push(to);
         }
         
-        query += ' ORDER BY t.id, st.type';
+        query += ' GROUP BY t.id, t.name, t.from_station, t.to_station, ts.departure_date';
+        query += ' ORDER BY t.id';
         
         const [rows] = await pool.execute(query, params);
         
-        // 整理数据格式
-        const trainsMap = new Map();
+        console.log(`查询结果: ${rows.length} 个车次`);
         
+        // 获取每个车次的详细信息
+        const trains = [];
         for (const row of rows) {
-            if (!trainsMap.has(row.id)) {
-                trainsMap.set(row.id, {
-                    id: row.id,
-                    name: row.name,
-                    from: row.from_station,
-                    to: row.to_station,
-                    seatTypes: []
+            const trainInfo = {
+                id: row.id,
+                name: row.name,
+                from: row.from_station,
+                to: row.to_station,
+                date: row.departure_date,
+                seatTypes: []
+            };
+            
+            // 获取时刻表
+            const [scheduleRows] = await pool.execute(`
+                SELECT station_name, station_order, arrival_time, departure_time, distance_km
+                FROM train_stations
+                WHERE train_id = ?
+                ORDER BY station_order
+            `, [row.id]);
+            
+            trainInfo.schedule = scheduleRows.map(s => ({
+                station: s.station_name,
+                order: s.station_order,
+                arrival: s.arrival_time,
+                departure: s.departure_time,
+                distance: s.distance_km
+            }));
+            
+            // 获取座位类型和可用座位数
+            const seatTypes = row.seat_types.split(',');
+            for (const seatType of seatTypes) {
+                const [availableSeats] = await pool.execute(`
+                    SELECT COUNT(*) as total_seats, 
+                           COUNT(*) as available_seats
+                    FROM seats s
+                    JOIN carriages c ON s.carriage_id = c.id
+                    WHERE c.train_id = ? AND s.seat_type = ?
+                `, [row.id, seatType]);
+                
+                // 获取价格（全程价格）
+                const [priceRows] = await pool.execute(`
+                    SELECT price
+                    FROM prices
+                    WHERE train_id = ? AND from_station = ? AND to_station = ? AND seat_type = ?
+                `, [row.id, row.from_station, row.to_station, seatType]);
+                
+                trainInfo.seatTypes.push({
+                    type: seatType,
+                    price: priceRows.length > 0 ? priceRows[0].price : 0,
+                    availableSeats: availableSeats[0].available_seats || 0,
+                    totalSeats: availableSeats[0].total_seats || 0
                 });
             }
             
-            trainsMap.get(row.id).seatTypes.push({
-                type: row.type,
-                price: row.price,
-                availableSeats: row.available_seats,
-                totalSeats: row.total_seats
-            });
+            trains.push(trainInfo);
         }
         
-        const trains = Array.from(trainsMap.values());
         sendSuccess(res, trains, '查询火车信息成功');
         
     } catch (error) {
@@ -308,31 +177,67 @@ app.get('/stops/:trainId', async (req, res) => {
     try {
         const trainId = req.params.trainId;
         
-        const [rows] = await pool.execute(`
-            SELECT station, seat_type, price
-            FROM stops
+        // 获取车次的经停站时刻表
+        const [scheduleRows] = await pool.execute(`
+            SELECT station_name, station_order, arrival_time, departure_time, distance_km
+            FROM train_stations
             WHERE train_id = ?
-            ORDER BY station, seat_type
+            ORDER BY station_order
         `, [trainId]);
         
-        // 整理数据格式
-        const stopsMap = new Map();
+        // 获取车次的座位类型
+        const [seatTypeRows] = await pool.execute(`
+            SELECT DISTINCT seat_type
+            FROM carriages
+            WHERE train_id = ?
+        `, [trainId]);
         
-        for (const row of rows) {
-            if (!stopsMap.has(row.station)) {
-                stopsMap.set(row.station, {
-                    station: row.station,
-                    seatTypes: []
-                });
-            }
-            
-            stopsMap.get(row.station).seatTypes.push({
-                type: row.seat_type,
-                price: row.price
-            });
+        // 获取火车的起始和终点站
+        const [trainRows] = await pool.execute(`
+            SELECT from_station, to_station
+            FROM trains
+            WHERE id = ?
+        `, [trainId]);
+        
+        if (trainRows.length === 0) {
+            return sendError(res, '未找到指定的火车', 404);
         }
         
-        const stops = Array.from(stopsMap.values());
+        const train = trainRows[0];
+        const stops = [];
+        
+        for (const schedule of scheduleRows) {
+            const stopInfo = {
+                station: schedule.station_name,
+                order: schedule.station_order,
+                arrival: schedule.arrival_time,
+                departure: schedule.departure_time,
+                distance: schedule.distance_km,
+                seatTypes: []
+            };
+            
+            // 为每个经停站获取到各个座位类型的价格
+            for (const seatTypeRow of seatTypeRows) {
+                const seatType = seatTypeRow.seat_type;
+                
+                // 获取从火车起始站到当前站的价格
+                const [priceRows] = await pool.execute(`
+                    SELECT price
+                    FROM prices
+                    WHERE train_id = ? AND from_station = ? AND to_station = ? AND seat_type = ?
+                `, [trainId, train.from_station, schedule.station_name, seatType]);
+                
+                if (priceRows.length > 0) {
+                    stopInfo.seatTypes.push({
+                        type: seatType,
+                        price: priceRows[0].price
+                    });
+                }
+            }
+            
+            stops.push(stopInfo);
+        }
+        
         sendSuccess(res, stops, '查询经停站信息成功');
         
     } catch (error) {
@@ -341,11 +246,250 @@ app.get('/stops/:trainId', async (req, res) => {
     }
 });
 
+
+//------------最主要的逻辑，涉及座位区间冲突，座位分配------------//
+// 查询可预订车次
+app.post('/search-bookable-trains', async (req, res) => {
+    try {
+        const { fromStation, toStation, date } = req.body;
+        const queryDate = date || new Date().toISOString().split('T')[0];
+        
+        // 输入验证
+        if (!fromStation || !toStation) {
+            return sendError(res, '请填写出发站和到达站', 400);
+        }
+        
+        // 查询可预订的车次
+        const [trains] = await pool.execute(`
+            SELECT DISTINCT t.id, t.name, t.from_station, t.to_station, ts.id as schedule_id, ts.departure_date
+            FROM trains t
+            JOIN train_schedules ts ON t.id = ts.train_id
+            JOIN train_stations ts1 ON t.id = ts1.train_id AND ts1.station_name = ?
+            JOIN train_stations ts2 ON t.id = ts2.train_id AND ts2.station_name = ?
+            WHERE ts.departure_date = ?
+            AND ts1.station_order < ts2.station_order
+            ORDER BY t.id
+        `, [fromStation, toStation, queryDate]);
+        
+        if (trains.length === 0) {
+            return sendSuccess(res, [], '未找到符合条件的车次');
+        }
+        
+        // 为每个车次获取详细信息
+        const result = [];
+        
+        for (const trainRow of trains) {
+            const trainInfo = {
+                id: trainRow.id,
+                name: trainRow.name,
+                from: trainRow.from_station,
+                to: trainRow.to_station,
+                date: trainRow.departure_date,
+                scheduleId: trainRow.schedule_id,
+                seatTypes: []
+            };
+            
+            // 获取时刻表信息
+            const [scheduleRows] = await pool.execute(`
+                SELECT station_name, station_order, arrival_time, departure_time
+                FROM train_stations
+                WHERE train_id = ?
+                ORDER BY station_order
+            `, [trainRow.id]);
+            
+            trainInfo.schedule = scheduleRows.map(s => ({
+                station: s.station_name,
+                order: s.station_order,
+                arrival: s.arrival_time,
+                departure: s.departure_time
+            }));
+            
+            // 获取座位类型和可用座位
+            const [seatTypeRows] = await pool.execute(`
+                SELECT DISTINCT seat_type
+                FROM carriages
+                WHERE train_id = ?
+            `, [trainRow.id]);
+            
+            for (const seatTypeRow of seatTypeRows) {
+                const seatType = seatTypeRow.seat_type;
+                
+                // 计算可用座位数（考虑区间冲突）
+                const availableSeats = await getAvailableSeats(trainRow.schedule_id, seatType, fromStation, toStation);
+                
+                if (availableSeats > 0) {
+                    // 获取价格
+                    const [priceRows] = await pool.execute(`
+                        SELECT price
+                        FROM prices
+                        WHERE train_id = ? AND from_station = ? AND to_station = ? AND seat_type = ?
+                    `, [trainRow.id, fromStation, toStation, seatType]);
+                    
+                    trainInfo.seatTypes.push({
+                        type: seatType,
+                        price: priceRows.length > 0 ? priceRows[0].price : 0,
+                        availableSeats: availableSeats,
+                        totalSeats: await getTotalSeats(trainRow.id, seatType)
+                    });
+                }
+            }
+            
+            // 只有有可用座位的车次才添加到结果中
+            if (trainInfo.seatTypes.length > 0) {
+                result.push(trainInfo);
+            }
+        }
+        
+        sendSuccess(res, result, '查询成功');
+        
+    } catch (error) {
+        console.error('查询可预订车次失败:', error);
+        sendError(res, '查询失败');
+    }
+});
+
+// 计算可用座位数（考虑区间冲突）
+async function getAvailableSeats(scheduleId, seatType, fromStation, toStation) {
+    const connection = await pool.getConnection();
+    try {
+        // 获取该车次指定座位类型的所有座位
+        const [totalSeatsRows] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM seats s
+            JOIN carriages c ON s.carriage_id = c.id
+            JOIN train_schedules ts ON c.train_id = ts.train_id
+            WHERE ts.id = ? AND s.seat_type = ?
+        `, [scheduleId, seatType]);
+        
+        const totalSeats = totalSeatsRows[0].total;
+        
+        // 获取在这个区间内已经被占用的座位
+        const [occupiedSeatsRows] = await connection.execute(`
+            SELECT COUNT(DISTINCT sa.seat_id) as occupied
+            FROM seat_allocations sa
+            JOIN seats s ON sa.seat_id = s.id
+            JOIN carriages c ON s.carriage_id = c.id
+            JOIN train_stations ts1 ON c.train_id = ts1.train_id AND ts1.station_name = sa.from_station
+            JOIN train_stations ts2 ON c.train_id = ts2.train_id AND ts2.station_name = sa.to_station
+            JOIN train_stations ts3 ON c.train_id = ts3.train_id AND ts3.station_name = ?
+            JOIN train_stations ts4 ON c.train_id = ts4.train_id AND ts4.station_name = ?
+            WHERE sa.schedule_id = ? AND s.seat_type = ? AND sa.is_deleted = FALSE
+            AND NOT (ts2.station_order <= ts3.station_order OR ts1.station_order >= ts4.station_order)
+        `, [fromStation, toStation, scheduleId, seatType]);
+        
+        const occupiedSeats = occupiedSeatsRows[0].occupied || 0;
+        
+        return Math.max(0, totalSeats - occupiedSeats);
+        
+    } finally {
+        connection.release();
+    }
+}
+
+// 获取总座位数
+async function getTotalSeats(trainId, seatType) {
+    const connection = await pool.getConnection();
+    try {
+        const [rows] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM seats s
+            JOIN carriages c ON s.carriage_id = c.id
+            WHERE c.train_id = ? AND s.seat_type = ?
+        `, [trainId, seatType]);
+        
+        return rows[0].total;
+        
+    } finally {
+        connection.release();
+    }
+}
+
+// 查找可用座位
+async function findAvailableSeat(scheduleId, seatType, fromStation, toStation) {
+    const connection = await pool.getConnection();
+    try {
+        // 查找所有该座位类型的座位
+        const [seatRows] = await connection.execute(`
+            SELECT s.id, s.seat_number, c.carriage_number
+            FROM seats s
+            JOIN carriages c ON s.carriage_id = c.id
+            JOIN train_schedules ts ON c.train_id = ts.train_id
+            WHERE ts.id = ? AND s.seat_type = ?
+            ORDER BY c.carriage_number, s.seat_number
+        `, [scheduleId, seatType]);
+        
+        // 检查每个座位是否在指定区间内可用
+        for (const seat of seatRows) {
+            const [conflictRows] = await connection.execute(`
+                SELECT COUNT(*) as conflicts
+                FROM seat_allocations sa
+                JOIN train_stations ts1 ON sa.schedule_id = ? AND EXISTS (
+                    SELECT 1 FROM train_schedules ts 
+                    JOIN train_stations tst ON ts.train_id = tst.train_id 
+                    WHERE ts.id = sa.schedule_id AND tst.station_name = sa.from_station
+                ) AND EXISTS (
+                    SELECT 1 FROM train_schedules ts 
+                    JOIN train_stations tst ON ts.train_id = tst.train_id 
+                    WHERE ts.id = sa.schedule_id AND tst.station_name = sa.to_station
+                )
+                JOIN train_stations ts2 ON EXISTS (
+                    SELECT 1 FROM train_schedules ts 
+                    JOIN train_stations tst ON ts.train_id = tst.train_id 
+                    WHERE ts.id = sa.schedule_id AND tst.station_name = ?
+                ) AND EXISTS (
+                    SELECT 1 FROM train_schedules ts 
+                    JOIN train_stations tst ON ts.train_id = tst.train_id 
+                    WHERE ts.id = sa.schedule_id AND tst.station_name = ?
+                )
+                WHERE sa.seat_id = ? AND sa.schedule_id = ? AND sa.is_deleted = FALSE
+                AND NOT (
+                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = sa.to_station) <= 
+                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = ?) OR
+                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = sa.from_station) >= 
+                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = ?)
+                )
+            `, [scheduleId, fromStation, toStation, seat.id, scheduleId, fromStation, toStation]);
+            
+            if (conflictRows[0].conflicts === 0) {
+                return {
+                    seatId: seat.id,
+                    seatNumber: seat.seat_number,
+                    carriageNumber: seat.carriage_number
+                };
+            }
+        }
+        
+        return null;
+        
+    } finally {
+        connection.release();
+    }
+}
+
+// 计算区间价格的辅助函数
+async function calculatePrice(trainId, fromStation, toStation, seatType) {
+    const connection = await pool.getConnection();
+    try {
+        // 直接从价格表查询
+        const [priceRows] = await connection.execute(`
+            SELECT price
+            FROM prices
+            WHERE train_id = ? AND from_station = ? AND to_station = ? AND seat_type = ?
+        `, [trainId, fromStation, toStation, seatType]);
+        
+        return priceRows.length > 0 ? priceRows[0].price : 0;
+        
+    } finally {
+        connection.release();
+    }
+}
+
 // 预订车票
 app.post('/book', async (req, res) => {
     const connection = await pool.getConnection();
     try {
-        const { trainId, seatType, passengerName, passengerId, fromStation, toStation } = req.body;
+        const { trainId, seatType, passengerName, passengerId, fromStation, toStation, date } = req.body;
+        const queryDate = date || new Date().toISOString().split('T')[0];
         
         // 输入验证
         if (!trainId || !seatType || !passengerName || !passengerId || !fromStation || !toStation) {
@@ -354,107 +498,63 @@ app.post('/book', async (req, res) => {
         
         await connection.beginTransaction();
         
-        // 检查余票
-        const [seatRows] = await connection.execute(`
-            SELECT available_seats, price
-            FROM seat_types
-            WHERE train_id = ? AND type = ?
-        `, [trainId, seatType]);
+        // 获取车次时刻表ID
+        const [scheduleRows] = await connection.execute(`
+            SELECT id FROM train_schedules
+            WHERE train_id = ? AND departure_date = ?
+        `, [trainId, queryDate]);
         
-        if (seatRows.length === 0) {
+        if (scheduleRows.length === 0) {
             await connection.rollback();
-            return sendError(res, '未找到指定的座位类型', 404);
+            return sendError(res, '未找到指定日期的车次', 404);
         }
         
-        if (seatRows[0].available_seats <= 0) {
+        const scheduleId = scheduleRows[0].id;
+        
+        // 验证出发站和到达站的顺序
+        const [stationOrderRows] = await connection.execute(`
+            SELECT 
+                (SELECT station_order FROM train_stations WHERE train_id = ? AND station_name = ?) as from_order,
+                (SELECT station_order FROM train_stations WHERE train_id = ? AND station_name = ?) as to_order
+        `, [trainId, fromStation, trainId, toStation]);
+        
+        if (stationOrderRows.length === 0 || !stationOrderRows[0].from_order || !stationOrderRows[0].to_order) {
             await connection.rollback();
-            return sendError(res, '该座位类型已售完', 400);
+            return sendError(res, '出发站或到达站不在此车次路线上', 404);
+        }
+        
+        if (stationOrderRows[0].from_order >= stationOrderRows[0].to_order) {
+            await connection.rollback();
+            return sendError(res, '出发站必须在到达站之前', 400);
+        }
+        
+        // 查找可用座位
+        const availableSeat = await findAvailableSeat(scheduleId, seatType, fromStation, toStation);
+        
+        if (!availableSeat) {
+            await connection.rollback();
+            return sendError(res, '该座位类型已售完或无可用座位', 400);
         }
         
         // 计算价格
-        let totalPrice = seatRows[0].price;  // 默认全程价格
+        const totalPrice = await calculatePrice(trainId, fromStation, toStation, seatType);
         
-        // 获取火车信息
-        const [trainInfo] = await connection.execute(`
-            SELECT from_station, to_station FROM trains WHERE id = ?
-        `, [trainId]);
-        
-        if (trainInfo.length === 0) {
+        if (totalPrice <= 0) {
             await connection.rollback();
-            return sendError(res, '未找到指定的火车', 404);
-        }
-        
-        const train = trainInfo[0];
-        
-        // 价格计算逻辑
-        if (fromStation === train.from_station && toStation === train.to_station) {
-            // 情况1: 全程票 - 使用全程价格
-            totalPrice = seatRows[0].price;
-        } else {
-            // 情况2: 区间票 - 需要计算区间价格
-            let fromPrice = 0;  // 起始站到火车起点的价格
-            let toPrice = 0;    // 终点站到火车起点的价格
-            
-            // 查询出发站价格（如果不是火车起始站）
-            if (fromStation !== train.from_station) {
-                const [fromStopRows] = await connection.execute(`
-                    SELECT price FROM stops
-                    WHERE train_id = ? AND station = ? AND seat_type = ?
-                `, [trainId, fromStation, seatType]);
-                
-                if (fromStopRows.length > 0) {
-                    fromPrice = fromStopRows[0].price;
-                } else {
-                    // 如果找不到出发站，可能是终点站
-                    if (fromStation === train.to_station) {
-                        fromPrice = seatRows[0].price;  // 终点站价格就是全程价格
-                    } else {
-                        await connection.rollback();
-                        return sendError(res, '未找到出发站信息', 404);
-                    }
-                }
-            }
-            
-            // 查询到达站价格（如果不是火车终点站）
-            if (toStation !== train.to_station) {
-                const [toStopRows] = await connection.execute(`
-                    SELECT price FROM stops
-                    WHERE train_id = ? AND station = ? AND seat_type = ?
-                `, [trainId, toStation, seatType]);
-                
-                if (toStopRows.length > 0) {
-                    toPrice = toStopRows[0].price;
-                } else {
-                    await connection.rollback();
-                    return sendError(res, '未找到到达站信息', 404);
-                }
-            } else {
-                // 如果到达站是火车终点站，使用全程价格
-                toPrice = seatRows[0].price;
-            }
-            
-            // 计算区间价格：到达站价格 - 出发站价格
-            totalPrice = toPrice - fromPrice;
-            
-            // 确保价格不为负数
-            if (totalPrice <= 0) {
-                await connection.rollback();
-                return sendError(res, '价格计算错误，请检查出发站和到达站顺序', 400);
-            }
+            return sendError(res, '价格计算错误', 400);
         }
         
         // 创建订单
         const [orderResult] = await connection.execute(`
-            INSERT INTO orders (train_id, from_station, to_station, seat_type, passenger_name, passenger_id, price)
+            INSERT INTO orders (schedule_id, from_station, to_station, seat_type, passenger_name, passenger_id, price)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [trainId, fromStation, toStation, seatType, passengerName, passengerId, totalPrice]);
+        `, [scheduleId, fromStation, toStation, seatType, passengerName, passengerId, totalPrice]);
         
-        // 更新余票
+        // 分配座位
         await connection.execute(`
-            UPDATE seat_types
-            SET available_seats = available_seats - 1
-            WHERE train_id = ? AND type = ?
-        `, [trainId, seatType]);
+            INSERT INTO seat_allocations (schedule_id, seat_id, from_station, to_station, passenger_name, passenger_id, order_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [scheduleId, availableSeat.seatId, fromStation, toStation, passengerName, passengerId, orderResult.insertId]);
         
         await connection.commit();
         
@@ -462,10 +562,13 @@ app.post('/book', async (req, res) => {
             orderId: orderResult.insertId,
             trainId,
             seatType,
+            seatNumber: availableSeat.seatNumber,
+            carriageNumber: availableSeat.carriageNumber,
             passengerName,
             passengerId,
             fromStation,
             toStation,
+            date: queryDate,
             price: totalPrice
         }, '预订成功');
         
@@ -485,23 +588,29 @@ app.get('/orders', async (req, res) => {
         
         let query = `
             SELECT 
-                o.id, o.train_id, o.from_station, o.to_station,
-                o.seat_type, o.passenger_name, o.passenger_id, o.price, o.created_at,
-                t.name as train_name
+                o.id, o.schedule_id, o.from_station, o.to_station,
+                o.seat_type, o.passenger_name, o.passenger_id, o.price, o.status, o.created_at,
+                t.name as train_name, ts.departure_date,
+                sa.seat_id, s.seat_number, c.carriage_number
             FROM orders o
-            JOIN trains t ON o.train_id = t.id
+            JOIN train_schedules ts ON o.schedule_id = ts.id
+            JOIN trains t ON ts.train_id = t.id
+            LEFT JOIN seat_allocations sa ON o.id = sa.order_id AND sa.is_deleted = FALSE
+            LEFT JOIN seats s ON sa.seat_id = s.id
+            LEFT JOIN carriages c ON s.carriage_id = c.id
+            WHERE o.is_deleted = FALSE
         `;
         
         const params = [];
         
         if (passengerName && passengerId) {
-            query += ' WHERE o.passenger_name = ? AND o.passenger_id = ?';
+            query += ' AND o.passenger_name = ? AND o.passenger_id = ?';
             params.push(passengerName, passengerId);
         } else if (passengerName) {
-            query += ' WHERE o.passenger_name = ?';
+            query += ' AND o.passenger_name = ?';
             params.push(passengerName);
         } else if (passengerId) {
-            query += ' WHERE o.passenger_id = ?';
+            query += ' AND o.passenger_id = ?';
             params.push(passengerId);
         }
         
@@ -509,11 +618,218 @@ app.get('/orders', async (req, res) => {
         
         const [rows] = await pool.execute(query, params);
         
-        sendSuccess(res, rows, '查询订单成功');
+        // 整理数据格式
+        const orders = rows.map(row => ({
+            id: row.id,
+            trainName: row.train_name,
+            date: row.departure_date,
+            fromStation: row.from_station,
+            toStation: row.to_station,
+            seatType: row.seat_type,
+            seatNumber: row.seat_number,
+            carriageNumber: row.carriage_number,
+            passengerName: row.passenger_name,
+            passengerId: row.passenger_id,
+            price: row.price,
+            status: row.status,
+            createdAt: row.created_at
+        }));
+        
+        sendSuccess(res, orders, '查询订单成功');
         
     } catch (error) {
         console.error('查询订单失败:', error);
         sendError(res, '查询订单失败');
+    }
+});
+
+// 取消订单（软删除）
+app.delete('/orders/:orderId', async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const orderId = req.params.orderId;
+        
+        // 输入验证
+        if (!orderId || isNaN(orderId)) {
+            return sendError(res, '请提供有效的订单ID', 400);
+        }
+        
+        await connection.beginTransaction();
+        
+        // 检查订单是否存在且未删除
+        const [orderRows] = await connection.execute(`
+            SELECT id, status FROM orders 
+            WHERE id = ? AND is_deleted = FALSE
+        `, [orderId]);
+        
+        if (orderRows.length === 0) {
+            await connection.rollback();
+            return sendError(res, '订单不存在或已被删除', 404);
+        }
+        
+        // 软删除订单
+        await connection.execute(`
+            UPDATE orders 
+            SET is_deleted = TRUE, deleted_at = NOW(), status = 'cancelled'
+            WHERE id = ?
+        `, [orderId]);
+        
+        // 软删除对应的座位分配
+        await connection.execute(`
+            UPDATE seat_allocations 
+            SET is_deleted = TRUE, deleted_at = NOW()
+            WHERE order_id = ?
+        `, [orderId]);
+        
+        await connection.commit();
+        
+        sendSuccess(res, { orderId: parseInt(orderId) }, '订单取消成功');
+        
+    } catch (error) {
+        await connection.rollback();
+        console.error('取消订单失败:', error);
+        sendError(res, '取消订单失败');
+    } finally {
+        connection.release();
+    }
+});
+
+// 恢复订单（取消软删除）
+app.put('/orders/:orderId/restore', async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const orderId = req.params.orderId;
+        
+        // 输入验证
+        if (!orderId || isNaN(orderId)) {
+            return sendError(res, '请提供有效的订单ID', 400);
+        }
+        
+        await connection.beginTransaction();
+        
+        // 检查订单是否存在且已删除
+        const [orderRows] = await connection.execute(`
+            SELECT id, status FROM orders 
+            WHERE id = ? AND is_deleted = TRUE
+        `, [orderId]);
+        
+        if (orderRows.length === 0) {
+            await connection.rollback();
+            return sendError(res, '订单不存在或未被删除', 404);
+        }
+        
+        // 检查座位是否仍然可用
+        const [seatRows] = await connection.execute(`
+            SELECT sa.seat_id, sa.from_station, sa.to_station, sa.schedule_id,
+                   s.seat_type, s.seat_number, c.carriage_number
+            FROM seat_allocations sa
+            JOIN seats s ON sa.seat_id = s.id
+            JOIN carriages c ON s.carriage_id = c.id
+            WHERE sa.order_id = ? AND sa.is_deleted = TRUE
+        `, [orderId]);
+        
+        if (seatRows.length === 0) {
+            await connection.rollback();
+            return sendError(res, '未找到订单的座位信息', 404);
+        }
+        
+        // 检查座位是否已被其他订单占用
+        for (const seat of seatRows) {
+            const availableSeats = await getAvailableSeats(
+                seat.schedule_id, 
+                seat.seat_type, 
+                seat.from_station, 
+                seat.to_station
+            );
+            
+            if (availableSeats <= 0) {
+                await connection.rollback();
+                return sendError(res, '该座位已被其他订单占用，无法恢复', 400);
+            }
+        }
+        
+        // 恢复订单
+        await connection.execute(`
+            UPDATE orders 
+            SET is_deleted = FALSE, deleted_at = NULL, status = 'confirmed'
+            WHERE id = ?
+        `, [orderId]);
+        
+        // 恢复座位分配
+        await connection.execute(`
+            UPDATE seat_allocations 
+            SET is_deleted = FALSE, deleted_at = NULL
+            WHERE order_id = ?
+        `, [orderId]);
+        
+        await connection.commit();
+        
+        sendSuccess(res, { orderId: parseInt(orderId) }, '订单恢复成功');
+        
+    } catch (error) {
+        await connection.rollback();
+        console.error('恢复订单失败:', error);
+        sendError(res, '恢复订单失败');
+    } finally {
+        connection.release();
+    }
+});
+
+// 查询已删除的订单
+app.get('/orders/deleted', async (req, res) => {
+    try {
+        const { passengerName, passengerId } = req.query;
+        
+        let query = `
+            SELECT 
+                o.id, o.schedule_id, o.from_station, o.to_station,
+                o.seat_type, o.passenger_name, o.passenger_id, o.price, o.status, 
+                o.created_at, o.deleted_at,
+                t.name as train_name, ts.departure_date
+            FROM orders o
+            JOIN train_schedules ts ON o.schedule_id = ts.id
+            JOIN trains t ON ts.train_id = t.id
+            WHERE o.is_deleted = TRUE
+        `;
+        
+        const params = [];
+        
+        if (passengerName && passengerId) {
+            query += ' AND o.passenger_name = ? AND o.passenger_id = ?';
+            params.push(passengerName, passengerId);
+        } else if (passengerName) {
+            query += ' AND o.passenger_name = ?';
+            params.push(passengerName);
+        } else if (passengerId) {
+            query += ' AND o.passenger_id = ?';
+            params.push(passengerId);
+        }
+        
+        query += ' ORDER BY o.deleted_at DESC';
+        
+        const [rows] = await pool.execute(query, params);
+        
+        // 整理数据格式
+        const orders = rows.map(row => ({
+            id: row.id,
+            trainName: row.train_name,
+            date: row.departure_date,
+            fromStation: row.from_station,
+            toStation: row.to_station,
+            seatType: row.seat_type,
+            passengerName: row.passenger_name,
+            passengerId: row.passenger_id,
+            price: row.price,
+            status: row.status,
+            createdAt: row.created_at,
+            deletedAt: row.deleted_at
+        }));
+        
+        sendSuccess(res, orders, '查询已删除订单成功');
+        
+    } catch (error) {
+        console.error('查询已删除订单失败:', error);
+        sendError(res, '查询已删除订单失败');
     }
 });
 
@@ -534,10 +850,14 @@ app.get('/test-db', async (req, res) => {
 });
 
 // 启动服务器
-async function startServer() {
+async function startServer(shouldInitDB = true) {
     try {
-        // 初始化数据库
-        await initDatabase();
+        // 可选择性地初始化数据库
+        if (shouldInitDB) {
+            console.log('正在初始化数据库...');
+            await initDatabase();
+            await insertTestData();
+        }
         
         // 启动HTTP服务器
         app.listen(PORT, () => {

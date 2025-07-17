@@ -219,6 +219,77 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* 车次选择相关样式 */
+        .train-selection-list {
+            margin-top: 20px;
+        }
+        
+        .train-item {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .train-item h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .seat-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .seat-type-item {
+            background: #ffffff;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .seat-type-item:hover {
+            background: #4CAF50;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+        
+        .seat-type-item strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .seat-type-item br {
+            line-height: 1.5;
+        }
+        
+        #booking-step1 h3,
+        #booking-step2 h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4CAF50;
+        }
+        
+        #booking-step2 {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -287,64 +358,67 @@
             <!-- 车票预订测试 -->
             <div class="test-section">
                 <h2>车票预订测试</h2>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="book-train-id">火车ID：</label>
-                        <input type="number" id="book-train-id" placeholder="请输入火车ID">
+                
+                <!-- 第一步：输入出发站、到达站和乘客信息 -->
+                <div id="booking-step1">
+                    <h3>第一步：填写乘客信息</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="passenger-name">乘客姓名：</label>
+                            <input type="text" id="passenger-name" placeholder="请输入乘客姓名">
+                        </div>
+                        <div class="form-group">
+                            <label for="passenger-id">身份证号：</label>
+                            <input type="text" id="passenger-id" placeholder="请输入身份证号">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="seat-type">座位类型：</label>
-                        <select id="seat-type">
-                            <option value="二等座">二等座</option>
-                            <option value="一等座">一等座</option>
-                            <option value="商务座">商务座</option>
-                            <option value="硬座">硬座</option>
-                            <option value="硬卧">硬卧</option>
-                            <option value="软卧">软卧</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="book-from-station">出发站：</label>
+                            <select id="book-from-station">
+                                <option value="">请选择出发站</option>
+                                <option value="北京">北京</option>
+                                <option value="上海">上海</option>
+                                <option value="天津">天津</option>
+                                <option value="济南">济南</option>
+                                <option value="南京">南京</option>
+                                <option value="广州">广州</option>
+                                <option value="深圳">深圳</option>
+                                <option value="西安">西安</option>
+                                <option value="成都">成都</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="book-to-station">到达站：</label>
+                            <select id="book-to-station">
+                                <option value="">请选择到达站</option>
+                                <option value="北京">北京</option>
+                                <option value="上海">上海</option>
+                                <option value="天津">天津</option>
+                                <option value="济南">济南</option>
+                                <option value="南京">南京</option>
+                                <option value="广州">广州</option>
+                                <option value="深圳">深圳</option>
+                                <option value="西安">西安</option>
+                                <option value="成都">成都</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="book-date">出发日期：</label>
+                            <input type="date" id="book-date" min="2025-07-17" max="2025-07-30">
+                        </div>
                     </div>
+                    <button class="btn" onclick="searchBookableTrains()">查询可预订车次</button>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="passenger-name">乘客姓名：</label>
-                        <input type="text" id="passenger-name" placeholder="请输入乘客姓名">
-                    </div>
-                    <div class="form-group">
-                        <label for="passenger-id">身份证号：</label>
-                        <input type="text" id="passenger-id" placeholder="请输入身份证号">
-                    </div>
+                
+                <!-- 第二步：选择车次 -->
+                <div id="booking-step2" style="display:none;">
+                    <h3>第二步：选择车次</h3>
+                    <div id="train-selection-area"></div>
+                    <button class="btn btn-info" onclick="backToStep1()">返回修改</button>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="book-from-station">出发站：</label>
-                        <select id="book-from-station">
-                            <option value="北京">北京</option>
-                            <option value="上海">上海</option>
-                            <option value="天津">天津</option>
-                            <option value="济南">济南</option>
-                            <option value="南京">南京</option>
-                            <option value="广州">广州</option>
-                            <option value="深圳">深圳</option>
-                            <option value="西安">西安</option>
-                            <option value="成都">成都</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="book-to-station">到达站：</label>
-                        <select id="book-to-station">
-                            <option value="北京">北京</option>
-                            <option value="上海">上海</option>
-                            <option value="天津">天津</option>
-                            <option value="济南">济南</option>
-                            <option value="南京">南京</option>
-                            <option value="广州">广州</option>
-                            <option value="深圳">深圳</option>
-                            <option value="西安">西安</option>
-                            <option value="成都">成都</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn" onclick="bookTicket()">预订车票</button>
+                
+                <!-- 预订结果 -->
                 <div id="booking-result"></div>
             </div>
             
@@ -364,6 +438,21 @@
                 <button class="btn" onclick="queryOrders()">查询订单</button>
                 <button class="btn btn-info" onclick="getAllOrders()">查询所有订单</button>
                 <div id="orders-result"></div>
+            </div>
+            
+            <!-- 订单管理测试（软删除功能） -->
+            <div class="test-section">
+                <h2>订单管理测试（软删除功能）</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="manage-order-id">订单ID：</label>
+                        <input type="number" id="manage-order-id" placeholder="请输入订单ID">
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="cancelOrder()">取消订单</button>
+                <button class="btn" onclick="restoreOrder()">恢复订单</button>
+                <button class="btn btn-info" onclick="queryDeletedOrders()">查询已删除订单</button>
+                <div id="order-management-result"></div>
             </div>
             
             <!-- 压力测试 -->
@@ -529,20 +618,24 @@
                 let url = `${API_BASE}/trains`;
                 const params = new URLSearchParams();
                 
+                // 添加默认日期参数
+                params.append('date', '2025-07-17');
+                
                 if (from) params.append('from', from);
                 if (to) params.append('to', to);
                 
-                if (params.toString()) {
-                    url += '?' + params.toString();
-                }
+                url += '?' + params.toString();
                 
+                console.log('请求URL:', url);
                 const response = await fetch(url);
                 const data = await response.json();
+                console.log('API响应:', data);
                 
                 if (data.success) {
                     const resultElement = document.getElementById('trains-result');
                     resultElement.className = 'result success';
                     resultElement.innerHTML = createTrainTable(data.data);
+                    console.log('车次数据:', data.data);
                 } else {
                     displayResult('trains-result', data, false);
                 }
@@ -587,20 +680,130 @@
             }
         }
         
-        async function bookTicket() {
+        // 查询可预订车次
+        async function searchBookableTrains() {
             showLoading();
-            const trainId = document.getElementById('book-train-id').value;
-            const seatType = document.getElementById('seat-type').value;
+            const passengerName = document.getElementById('passenger-name').value;
+            const passengerId = document.getElementById('passenger-id').value;
+            const fromStation = document.getElementById('book-from-station').value;
+            const toStation = document.getElementById('book-to-station').value;
+            const date = document.getElementById('book-date').value;
+            
+            if (!passengerName || !passengerId || !fromStation || !toStation || !date) {
+                displayResult('booking-result', '请填写完整的乘客信息、出发站、到达站和出发日期', false);
+                hideLoading();
+                return;
+            }
+            
+            if (fromStation === toStation) {
+                displayResult('booking-result', '出发站和到达站不能相同', false);
+                hideLoading();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/search-bookable-trains`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fromStation,
+                        toStation,
+                        date
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data.length === 0) {
+                        displayResult('booking-result', '未找到符合条件的车次', false);
+                    } else {
+                        // 显示车次选择界面
+                        showTrainSelection(data.data);
+                    }
+                } else {
+                    displayResult('booking-result', data, false);
+                }
+            } catch (error) {
+                displayResult('booking-result', `查询错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 显示车次选择界面
+        function showTrainSelection(trains) {
+            document.getElementById('booking-step1').style.display = 'none';
+            document.getElementById('booking-step2').style.display = 'block';
+            
+            const selectionArea = document.getElementById('train-selection-area');
+            selectionArea.innerHTML = createTrainSelectionList(trains);
+        }
+        
+        // 创建车次选择列表
+        function createTrainSelectionList(trains) {
+            let html = '<div class="train-selection-list">';
+            
+            trains.forEach(train => {
+                html += `<div class="train-item">`;
+                html += `<h4>${train.name} (${train.from} → ${train.to}) - ${train.date}</h4>`;
+                
+                // 显示时刻表
+                if (train.schedule && train.schedule.length > 0) {
+                    html += `<div class="schedule-info" style="margin-bottom: 10px; font-size: 12px; color: #666;">`;
+                    html += `<strong>时刻表：</strong> `;
+                    train.schedule.forEach((station, index) => {
+                        if (index > 0) html += ' → ';
+                        html += `${station.station}`;
+                        if (station.departure) {
+                            html += ` ${station.departure}`;
+                        }
+                    });
+                    html += `</div>`;
+                }
+                
+                html += `<div class="seat-types">`;
+                
+                train.seatTypes.forEach(seatType => {
+                    html += `<div class="seat-type-item" 
+                             onclick="selectTrain(${train.id}, '${seatType.type}', ${seatType.price}, '${train.name}', '${train.date}')">`;
+                    html += `<strong>${seatType.type}</strong><br>`;
+                    html += `价格: ¥${seatType.price}<br>`;
+                    html += `余票: ${seatType.availableSeats}张`;
+                    html += `</div>`;
+                });
+                
+                html += `</div></div>`;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // 选择车次和座位类型
+        function selectTrain(trainId, seatType, price, trainName, date) {
             const passengerName = document.getElementById('passenger-name').value;
             const passengerId = document.getElementById('passenger-id').value;
             const fromStation = document.getElementById('book-from-station').value;
             const toStation = document.getElementById('book-to-station').value;
             
-            if (!trainId || !seatType || !passengerName || !passengerId || !fromStation || !toStation) {
-                displayResult('booking-result', '请填写完整的预订信息', false);
-                hideLoading();
-                return;
+            if (confirm(`确认预订：\\n车次: ${trainName}\\n日期: ${date}\\n座位类型: ${seatType}\\n价格: ¥${price}\\n乘客: ${passengerName}\\n行程: ${fromStation} → ${toStation}\\n\\n确认预订吗？`)) {
+                bookTicket(trainId, seatType, passengerName, passengerId, fromStation, toStation, date);
             }
+        }
+        
+        // 返回第一步
+        function backToStep1() {
+            document.getElementById('booking-step1').style.display = 'block';
+            document.getElementById('booking-step2').style.display = 'none';
+            document.getElementById('booking-result').innerHTML = '';
+        }
+        
+        // 预订车票（修改后的函数）
+        async function bookTicket(trainId, seatType, passengerName, passengerId, fromStation, toStation, date) {
+            showLoading();
             
             try {
                 const response = await fetch(`${API_BASE}/book`, {
@@ -614,12 +817,31 @@
                         passengerName,
                         passengerId,
                         fromStation,
-                        toStation
+                        toStation,
+                        date
                     })
                 });
                 
                 const data = await response.json();
-                displayResult('booking-result', data, data.success);
+                
+                if (data.success) {
+                    // 预订成功，显示结果并返回第一步
+                    displayResult('booking-result', data, true);
+                    
+                    // 清空表单
+                    document.getElementById('passenger-name').value = '';
+                    document.getElementById('passenger-id').value = '';
+                    document.getElementById('book-from-station').value = '';
+                    document.getElementById('book-to-station').value = '';
+                    document.getElementById('book-date').value = '';
+                    
+                    // 返回第一步
+                    setTimeout(() => {
+                        backToStep1();
+                    }, 3000);
+                } else {
+                    displayResult('booking-result', data, false);
+                }
             } catch (error) {
                 displayResult('booking-result', `预订错误: ${error.message}`, false);
             } finally {
@@ -664,6 +886,134 @@
             document.getElementById('query-passenger-name').value = '';
             document.getElementById('query-passenger-id').value = '';
             await queryOrders();
+        }
+        
+        // 取消订单（软删除）
+        async function cancelOrder() {
+            showLoading();
+            const orderId = document.getElementById('manage-order-id').value;
+            
+            if (!orderId) {
+                displayResult('order-management-result', '请输入订单ID', false);
+                hideLoading();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResult('order-management-result', `订单 ${orderId} 取消成功`, true);
+                    // 清空输入框
+                    document.getElementById('manage-order-id').value = '';
+                } else {
+                    displayResult('order-management-result', data, false);
+                }
+            } catch (error) {
+                displayResult('order-management-result', `取消订单错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 恢复订单
+        async function restoreOrder() {
+            showLoading();
+            const orderId = document.getElementById('manage-order-id').value;
+            
+            if (!orderId) {
+                displayResult('order-management-result', '请输入订单ID', false);
+                hideLoading();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}/restore`, {
+                    method: 'PUT'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResult('order-management-result', `订单 ${orderId} 恢复成功`, true);
+                    // 清空输入框
+                    document.getElementById('manage-order-id').value = '';
+                } else {
+                    displayResult('order-management-result', data, false);
+                }
+            } catch (error) {
+                displayResult('order-management-result', `恢复订单错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 查询已删除的订单
+        async function queryDeletedOrders() {
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/deleted`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const resultElement = document.getElementById('order-management-result');
+                    resultElement.className = 'result success';
+                    if (data.data.length === 0) {
+                        resultElement.innerHTML = '<p>没有已删除的订单</p>';
+                    } else {
+                        resultElement.innerHTML = createDeletedOrdersTable(data.data);
+                    }
+                } else {
+                    displayResult('order-management-result', data, false);
+                }
+            } catch (error) {
+                displayResult('order-management-result', `查询错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 创建已删除订单表格
+        function createDeletedOrdersTable(orders) {
+            if (!Array.isArray(orders) || orders.length === 0) {
+                return '<p>没有已删除的订单</p>';
+            }
+            
+            let html = '<table class="data-table"><thead><tr>';
+            html += '<th>订单ID</th><th>车次</th><th>日期</th><th>出发站</th><th>到达站</th><th>座位类型</th>';
+            html += '<th>乘客姓名</th><th>价格</th><th>状态</th><th>创建时间</th><th>删除时间</th><th>操作</th>';
+            html += '</tr></thead><tbody>';
+            
+            orders.forEach(order => {
+                html += '<tr>';
+                html += `<td>${order.id}</td>`;
+                html += `<td>${order.trainName}</td>`;
+                html += `<td>${order.date}</td>`;
+                html += `<td>${order.fromStation}</td>`;
+                html += `<td>${order.toStation}</td>`;
+                html += `<td>${order.seatType}</td>`;
+                html += `<td>${order.passengerName}</td>`;
+                html += `<td>¥${order.price}</td>`;
+                html += `<td>${order.status}</td>`;
+                html += `<td>${new Date(order.createdAt).toLocaleString()}</td>`;
+                html += `<td>${new Date(order.deletedAt).toLocaleString()}</td>`;
+                html += `<td><button class="btn" onclick="restoreOrderById(${order.id})">恢复</button></td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        // 通过ID恢复订单
+        async function restoreOrderById(orderId) {
+            document.getElementById('manage-order-id').value = orderId;
+            await restoreOrder();
         }
         
         async function stressTest() {
@@ -711,6 +1061,9 @@
         // 页面加载时自动测试连接
         window.onload = function() {
             testConnection();
+            
+            // 设置默认日期为2025-07-17
+            document.getElementById('book-date').value = '2025-07-17';
         };
     </script>
 </body>

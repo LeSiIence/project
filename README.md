@@ -1,6 +1,6 @@
-# 火车票售票系统 - MySQL版本
+# 火车票售票系统
 
-一个基于Node.js + Express + MySQL的完整火车票售票系统，支持火车信息查询、经停站价格查询、车票预订、订单管理等功能。
+一个基于Node.js + Express + MySQL的火车票售票系统，支持火车信息查询、经停站价格查询、车票预订、订单管理等功能。
 
 ## 🚀 功能特性
 
@@ -8,9 +8,9 @@
 - **经停站价格查询** - 查看火车各经停站的价格信息
 - **车票预订** - 完整的预订流程，支持余票管理
 - **订单管理** - 订单查询、历史记录
+- **软删除功能** - 订单取消、恢复，座位分配管理
 - **区间价格计算** - 准确计算不同起止站点的价格
 - **数据库事务支持** - 确保数据一致性
-- **Web测试界面** - 完整的测试和管理界面
 
 ## 🛠️ 技术栈
 
@@ -49,19 +49,19 @@ sudo systemctl start mysql
 
 ### 4. 启动项目
 
-**Windows:**
+**推荐使用启动脚本：**
 ```bash
-# 使用批处理文件（推荐）
+# 完整启动（推荐首次使用）
 start-service.bat
 
 # 或使用PowerShell
 start-service.ps1
 
-# 或快速启动
+# 快速启动（已配置环境）
 quick-start.bat
 ```
 
-**手动启动:**
+**手动启动：**
 ```bash
 node back-end.js
 ```
@@ -72,37 +72,48 @@ node back-end.js
 - **测试页面**: http://localhost:3000/mysql-test.html
 - **数据库连接测试**: http://localhost:3000/test-db
 
-## 📊 数据库结构
+## 📁 项目结构
 
-### 主要表结构：
-- `trains` - 火车信息（车次、起点、终点）
-- `seat_types` - 座位类型和价格
-- `stops` - 经停站价格信息
-- `orders` - 订单信息
-- `users` - 用户信息（预留）
+```
+project/
+├── back-end.js                   # 主服务器文件
+├── mysql-test.html               # Web测试页面
+├── package.json                  # 项目配置
+├── package-lock.json             # 依赖锁定
+├── quick-start.bat               # 快速启动脚本
+├── start-service.bat             # 完整启动脚本
+├── start-service.ps1             # PowerShell启动脚本
+├── mysql-reset-password-complete.bat # 密码重置工具
+├── .gitignore                    # Git忽略文件
+└── README.md                     # 项目说明
+```
 
-### 测试数据：
-- **G101**: 北京 → 上海（经停：天津、济南、南京）
-- **G102**: 上海 → 北京（经停：南京、济南、天津）
-- **D201**: 广州 → 深圳
-- **K301**: 西安 → 成都
+## 🎯 API端点
+
+- `GET /` - 重定向到测试页面
+- `GET /trains` - 查询火车信息
+- `GET /stops/:trainId` - 查询经停站
+- `POST /search-bookable-trains` - 搜索可预订车次
+- `POST /book` - 预订车票
+- `GET /orders` - 查询订单
+- `DELETE /orders/:orderId` - 取消订单（软删除）
+- `PUT /orders/:orderId/restore` - 恢复订单
+- `GET /orders/deleted` - 查询已删除订单
+- `GET /test-db` - 测试数据库连接
 
 ## 🧪 测试功能
 
-### 1. 数据库连接测试
-```bash
-node mysql-quick-test.js
-```
-
-### 2. Web界面测试
+### Web界面测试
 访问 http://localhost:3000/mysql-test.html 进行：
+- 数据库连接测试
 - 火车信息查询
 - 经停站价格查询
 - 车票预订测试
 - 订单查询测试
+- 订单管理测试（软删除功能）
 - 压力测试
 
-### 3. API测试
+### API测试
 ```bash
 # 查询所有火车
 curl http://localhost:3000/trains
@@ -110,18 +121,21 @@ curl http://localhost:3000/trains
 # 查询经停站
 curl http://localhost:3000/stops/1
 
+# 查询订单
+curl http://localhost:3000/orders
+
+# 取消订单（软删除）
+curl -X DELETE http://localhost:3000/orders/1
+
+# 恢复订单
+curl -X PUT http://localhost:3000/orders/1/restore
+
+# 查询已删除订单
+curl http://localhost:3000/orders/deleted
+
 # 测试数据库连接
 curl http://localhost:3000/test-db
 ```
-
-## 💡 价格计算逻辑
-
-系统支持准确的区间价格计算：
-
-- **全程票**：使用全程价格
-- **起始站到经停站**：使用经停站价格
-- **经停站到终点站**：全程价格 - 经停站价格
-- **经停站之间**：到达站价格 - 出发站价格
 
 ## 🔧 配置
 
@@ -145,44 +159,18 @@ const PORT = process.env.PORT || 3000;
 
 ### 常见问题：
 1. **MySQL连接失败** - 检查服务状态和密码配置
-2. **端口3000被占用** - 使用 `taskkill /f /im node.exe` 停止进程
-3. **依赖安装失败** - 清理npm缓存并重新安装
+2. **端口3000被占用** - 使用启动脚本会自动处理
+3. **依赖安装失败** - 运行 `npm install` 重新安装
 
-### 密码重置工具：
+### 密码重置：
+如果MySQL密码有问题，以管理员身份运行：
 ```bash
-# 以管理员身份运行
 mysql-reset-password-complete.bat
 ```
-
-## 📁 项目结构
-
-```
-project/
-├── back-end.js                 # 主服务器文件
-├── mysql-test.html             # Web测试页面
-├── package.json                # 项目配置
-├── start-service.bat           # 完整启动脚本
-├── quick-start.bat             # 快速启动脚本
-├── mysql-quick-test.js         # 数据库测试脚本
-├── configure-mysql-password.js # 密码配置工具
-└── README.md                   # 项目说明
-```
-
-## 🎯 API端点
-
-- `GET /trains` - 查询火车信息
-- `GET /stops/:trainId` - 查询经停站
-- `POST /book` - 预订车票
-- `GET /orders` - 查询订单
-- `GET /test-db` - 测试数据库连接
 
 ## 📄 许可证
 
 本项目仅用于学习和研究目的。
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
 
 ---
 
