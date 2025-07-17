@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL 查询逻辑测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #4CAF50;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-section h2::before {
+            content: '🔍';
+            font-size: 1.2em;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .btn.btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+        
+        .btn.btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+        
+        .btn.btn-info {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        }
+        
+        .btn.btn-info:hover {
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Consolas', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .data-table tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MySQL 查询逻辑测试</h1>
+            <p>火车票售票系统数据库测试平台</p>
+        </div>
+        
+        <div class="content">
+            <!-- 数据库连接测试 -->
+            <div class="test-section">
+                <h2>数据库连接测试</h2>
+                <button class="btn btn-info" onclick="testConnection()">测试数据库连接</button>
+                <div id="connection-status"></div>
+                <div id="connection-result"></div>
+            </div>
+            
+            <!-- 火车信息查询测试 -->
+            <div class="test-section">
+                <h2>火车信息查询测试</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="from-station">出发站：</label>
+                        <select id="from-station">
+                            <option value="">全部</option>
+                            <option value="北京">北京</option>
+                            <option value="上海">上海</option>
+                            <option value="广州">广州</option>
+                            <option value="深圳">深圳</option>
+                            <option value="西安">西安</option>
+                            <option value="成都">成都</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="to-station">到达站：</label>
+                        <select id="to-station">
+                            <option value="">全部</option>
+                            <option value="北京">北京</option>
+                            <option value="上海">上海</option>
+                            <option value="广州">广州</option>
+                            <option value="深圳">深圳</option>
+                            <option value="西安">西安</option>
+                            <option value="成都">成都</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="queryTrains()">查询火车信息</button>
+                <button class="btn btn-info" onclick="getAllTrains()">查询所有火车</button>
+                <div id="trains-result"></div>
+            </div>
+            
+            <!-- 经停站信息查询测试 -->
+            <div class="test-section">
+                <h2>经停站信息查询测试</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="train-id">火车ID：</label>
+                        <input type="number" id="train-id" placeholder="请输入火车ID">
+                    </div>
+                </div>
+                <button class="btn" onclick="queryStops()">查询经停站信息</button>
+                <div id="stops-result"></div>
+            </div>
+            
+            <!-- 车票预订测试 -->
+            <div class="test-section">
+                <h2>车票预订测试</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="book-train-id">火车ID：</label>
+                        <input type="number" id="book-train-id" placeholder="请输入火车ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="seat-type">座位类型：</label>
+                        <select id="seat-type">
+                            <option value="二等座">二等座</option>
+                            <option value="一等座">一等座</option>
+                            <option value="商务座">商务座</option>
+                            <option value="硬座">硬座</option>
+                            <option value="硬卧">硬卧</option>
+                            <option value="软卧">软卧</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="passenger-name">乘客姓名：</label>
+                        <input type="text" id="passenger-name" placeholder="请输入乘客姓名">
+                    </div>
+                    <div class="form-group">
+                        <label for="passenger-id">身份证号：</label>
+                        <input type="text" id="passenger-id" placeholder="请输入身份证号">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="book-from-station">出发站：</label>
+                        <select id="book-from-station">
+                            <option value="北京">北京</option>
+                            <option value="上海">上海</option>
+                            <option value="天津">天津</option>
+                            <option value="济南">济南</option>
+                            <option value="南京">南京</option>
+                            <option value="广州">广州</option>
+                            <option value="深圳">深圳</option>
+                            <option value="西安">西安</option>
+                            <option value="成都">成都</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="book-to-station">到达站：</label>
+                        <select id="book-to-station">
+                            <option value="北京">北京</option>
+                            <option value="上海">上海</option>
+                            <option value="天津">天津</option>
+                            <option value="济南">济南</option>
+                            <option value="南京">南京</option>
+                            <option value="广州">广州</option>
+                            <option value="深圳">深圳</option>
+                            <option value="西安">西安</option>
+                            <option value="成都">成都</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="bookTicket()">预订车票</button>
+                <div id="booking-result"></div>
+            </div>
+            
+            <!-- 订单查询测试 -->
+            <div class="test-section">
+                <h2>订单查询测试</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="query-passenger-name">乘客姓名：</label>
+                        <input type="text" id="query-passenger-name" placeholder="请输入乘客姓名">
+                    </div>
+                    <div class="form-group">
+                        <label for="query-passenger-id">身份证号：</label>
+                        <input type="text" id="query-passenger-id" placeholder="请输入身份证号">
+                    </div>
+                </div>
+                <button class="btn" onclick="queryOrders()">查询订单</button>
+                <button class="btn btn-info" onclick="getAllOrders()">查询所有订单</button>
+                <div id="orders-result"></div>
+            </div>
+            
+            <!-- 压力测试 -->
+            <div class="test-section">
+                <h2>压力测试</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="stress-count">并发数量：</label>
+                        <input type="number" id="stress-count" value="10" min="1" max="100">
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="stressTest()">开始压力测试</button>
+                <div id="stress-result"></div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在处理请求...</p>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+        
+        function displayResult(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            
+            if (typeof data === 'object') {
+                element.textContent = JSON.stringify(data, null, 2);
+            } else {
+                element.textContent = data;
+            }
+        }
+        
+        function createTable(data) {
+            if (!Array.isArray(data) || data.length === 0) {
+                return '<p>没有数据</p>';
+            }
+            
+            const keys = Object.keys(data[0]);
+            let html = '<table class="data-table"><thead><tr>';
+            
+            keys.forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                html += '<tr>';
+                keys.forEach(key => {
+                    let value = row[key];
+                    if (typeof value === 'object') {
+                        value = JSON.stringify(value);
+                    }
+                    html += `<td>${value}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        function createTrainTable(trains) {
+            if (!Array.isArray(trains) || trains.length === 0) {
+                return '<p>没有火车数据</p>';
+            }
+            
+            let html = '<table class="data-table"><thead><tr>';
+            html += '<th>火车ID</th><th>车次</th><th>出发站</th><th>到达站</th><th>座位类型</th><th>价格</th><th>余票</th><th>总票数</th>';
+            html += '</tr></thead><tbody>';
+            
+            trains.forEach(train => {
+                // 为每个火车的每个座位类型创建一行
+                train.seatTypes.forEach((seatType, index) => {
+                    html += '<tr>';
+                    if (index === 0) {
+                        // 只在第一行显示火车信息
+                        html += `<td rowspan="${train.seatTypes.length}">${train.id}</td>`;
+                        html += `<td rowspan="${train.seatTypes.length}">${train.name}</td>`;
+                        html += `<td rowspan="${train.seatTypes.length}">${train.from}</td>`;
+                        html += `<td rowspan="${train.seatTypes.length}">${train.to}</td>`;
+                    }
+                    html += `<td>${seatType.type}</td>`;
+                    html += `<td>¥${seatType.price}</td>`;
+                    html += `<td>${seatType.availableSeats}</td>`;
+                    html += `<td>${seatType.totalSeats}</td>`;
+                    html += '</tr>';
+                });
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        function createStopsTable(stops) {
+            if (!Array.isArray(stops) || stops.length === 0) {
+                return '<p>没有经停站数据</p>';
+            }
+            
+            let html = '<table class="data-table"><thead><tr>';
+            html += '<th>经停站</th><th>座位类型</th><th>价格</th>';
+            html += '</tr></thead><tbody>';
+            
+            stops.forEach(stop => {
+                // 为每个经停站的每个座位类型创建一行
+                stop.seatTypes.forEach((seatType, index) => {
+                    html += '<tr>';
+                    if (index === 0) {
+                        // 只在第一行显示经停站名称
+                        html += `<td rowspan="${stop.seatTypes.length}">${stop.station}</td>`;
+                    }
+                    html += `<td>${seatType.type}</td>`;
+                    html += `<td>¥${seatType.price}</td>`;
+                    html += '</tr>';
+                });
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        async function testConnection() {
+            showLoading();
+            const statusElement = document.getElementById('connection-status');
+            const resultElement = document.getElementById('connection-result');
+            
+            try {
+                const response = await fetch(`${API_BASE}/test-db`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusElement.innerHTML = '<span class="status connected">✓ 已连接</span>';
+                    displayResult('connection-result', data, true);
+                } else {
+                    statusElement.innerHTML = '<span class="status disconnected">✗ 连接失败</span>';
+                    displayResult('connection-result', data, false);
+                }
+            } catch (error) {
+                statusElement.innerHTML = '<span class="status disconnected">✗ 连接失败</span>';
+                displayResult('connection-result', `连接错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function queryTrains() {
+            showLoading();
+            const from = document.getElementById('from-station').value;
+            const to = document.getElementById('to-station').value;
+            
+            try {
+                let url = `${API_BASE}/trains`;
+                const params = new URLSearchParams();
+                
+                if (from) params.append('from', from);
+                if (to) params.append('to', to);
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const resultElement = document.getElementById('trains-result');
+                    resultElement.className = 'result success';
+                    resultElement.innerHTML = createTrainTable(data.data);
+                } else {
+                    displayResult('trains-result', data, false);
+                }
+            } catch (error) {
+                displayResult('trains-result', `查询错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function getAllTrains() {
+            document.getElementById('from-station').value = '';
+            document.getElementById('to-station').value = '';
+            await queryTrains();
+        }
+        
+        async function queryStops() {
+            showLoading();
+            const trainId = document.getElementById('train-id').value;
+            
+            if (!trainId) {
+                displayResult('stops-result', '请输入火车ID', false);
+                hideLoading();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/stops/${trainId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const resultElement = document.getElementById('stops-result');
+                    resultElement.className = 'result success';
+                    resultElement.innerHTML = createStopsTable(data.data);
+                } else {
+                    displayResult('stops-result', data, false);
+                }
+            } catch (error) {
+                displayResult('stops-result', `查询错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function bookTicket() {
+            showLoading();
+            const trainId = document.getElementById('book-train-id').value;
+            const seatType = document.getElementById('seat-type').value;
+            const passengerName = document.getElementById('passenger-name').value;
+            const passengerId = document.getElementById('passenger-id').value;
+            const fromStation = document.getElementById('book-from-station').value;
+            const toStation = document.getElementById('book-to-station').value;
+            
+            if (!trainId || !seatType || !passengerName || !passengerId || !fromStation || !toStation) {
+                displayResult('booking-result', '请填写完整的预订信息', false);
+                hideLoading();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/book`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        trainId,
+                        seatType,
+                        passengerName,
+                        passengerId,
+                        fromStation,
+                        toStation
+                    })
+                });
+                
+                const data = await response.json();
+                displayResult('booking-result', data, data.success);
+            } catch (error) {
+                displayResult('booking-result', `预订错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function queryOrders() {
+            showLoading();
+            const passengerName = document.getElementById('query-passenger-name').value;
+            const passengerId = document.getElementById('query-passenger-id').value;
+            
+            try {
+                let url = `${API_BASE}/orders`;
+                const params = new URLSearchParams();
+                
+                if (passengerName) params.append('passengerName', passengerName);
+                if (passengerId) params.append('passengerId', passengerId);
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const resultElement = document.getElementById('orders-result');
+                    resultElement.className = 'result success';
+                    resultElement.innerHTML = createTable(data.data);
+                } else {
+                    displayResult('orders-result', data, false);
+                }
+            } catch (error) {
+                displayResult('orders-result', `查询错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function getAllOrders() {
+            document.getElementById('query-passenger-name').value = '';
+            document.getElementById('query-passenger-id').value = '';
+            await queryOrders();
+        }
+        
+        async function stressTest() {
+            showLoading();
+            const count = parseInt(document.getElementById('stress-count').value) || 10;
+            const startTime = Date.now();
+            
+            try {
+                const promises = [];
+                for (let i = 0; i < count; i++) {
+                    promises.push(fetch(`${API_BASE}/trains`));
+                }
+                
+                const results = await Promise.all(promises);
+                const endTime = Date.now();
+                
+                let successCount = 0;
+                let errorCount = 0;
+                
+                for (const result of results) {
+                    if (result.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                }
+                
+                const testResult = {
+                    总请求数: count,
+                    成功请求数: successCount,
+                    失败请求数: errorCount,
+                    总耗时: `${endTime - startTime}ms`,
+                    平均耗时: `${Math.round((endTime - startTime) / count)}ms`,
+                    成功率: `${Math.round((successCount / count) * 100)}%`
+                };
+                
+                displayResult('stress-result', testResult, true);
+            } catch (error) {
+                displayResult('stress-result', `压力测试错误: ${error.message}`, false);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 页面加载时自动测试连接
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html> 

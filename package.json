@@ -1,0 +1,28 @@
+{
+  "name": "train-ticket-system",
+  "version": "1.0.0",
+  "description": "火车票售票系统后端API",
+  "main": "back-end.js",
+  "scripts": {
+    "start": "node back-end.js",
+    "dev": "nodemon back-end.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "train",
+    "ticket",
+    "booking"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "mysql2": "^3.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 
