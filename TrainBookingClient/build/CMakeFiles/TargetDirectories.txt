@@ -1,0 +1,9 @@
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/TrainBookingClient.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/edit_cache.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/rebuild_cache.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/list_install_components.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/install.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/install/local.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/install/strip.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/TrainBookingClient_autogen_timestamp_deps.dir
+C:/Users/admin/Desktop/project/TrainBookingClient/build/CMakeFiles/TrainBookingClient_autogen.dir

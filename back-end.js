@@ -378,6 +378,8 @@ async function getAvailableSeats(scheduleId, seatType, fromStation, toStation) {
             return 0;
         }
         
+
+        
         const { from_order, to_order } = trainInfo[0];
         
         // 获取在这个区间内已经被占用的座位数量

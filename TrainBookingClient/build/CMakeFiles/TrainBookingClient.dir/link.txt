@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\TrainBookingClient.dir/objects.a
+C:\Qt\Tools\mingw1310_64\bin\ar.exe qc CMakeFiles\TrainBookingClient.dir/objects.a @CMakeFiles\TrainBookingClient.dir\objects1.rsp
+C:\Qt\Tools\mingw1310_64\bin\c++.exe -O3 -DNDEBUG -mwindows -Wl,--whole-archive CMakeFiles\TrainBookingClient.dir/objects.a -Wl,--no-whole-archive -o bin\TrainBookingClient.exe -Wl,--out-implib,libTrainBookingClient.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\TrainBookingClient.dir\linkLibs.rsp
