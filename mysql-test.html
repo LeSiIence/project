@@ -378,10 +378,10 @@
                             <select id="book-from-station">
                                 <option value="">请选择出发站</option>
                                 <option value="北京">北京</option>
-                                <option value="上海">上海</option>
                                 <option value="天津">天津</option>
                                 <option value="济南">济南</option>
                                 <option value="南京">南京</option>
+                                <option value="上海">上海</option>
                                 <option value="广州">广州</option>
                                 <option value="深圳">深圳</option>
                                 <option value="西安">西安</option>
@@ -393,10 +393,10 @@
                             <select id="book-to-station">
                                 <option value="">请选择到达站</option>
                                 <option value="北京">北京</option>
-                                <option value="上海">上海</option>
                                 <option value="天津">天津</option>
                                 <option value="济南">济南</option>
                                 <option value="南京">南京</option>
+                                <option value="上海">上海</option>
                                 <option value="广州">广州</option>
                                 <option value="深圳">深圳</option>
                                 <option value="西安">西安</option>
@@ -413,7 +413,10 @@
                 
                 <!-- 第二步：选择车次 -->
                 <div id="booking-step2" style="display:none;">
-                    <h3>第二步：选择车次</h3>
+                    <h3>第二步：选择车次和座位类型</h3>
+                    <p style="color: #666; margin-bottom: 15px;">
+                        请点击您希望预订的座位类型。系统将自动为您分配最优座位。
+                    </p>
                     <div id="train-selection-area"></div>
                     <button class="btn btn-info" onclick="backToStep1()">返回修改</button>
                 </div>
@@ -702,6 +705,8 @@
             }
             
             try {
+                console.log('查询可预订车次:', { fromStation, toStation, date });
+                
                 const response = await fetch(`${API_BASE}/search-bookable-trains`, {
                     method: 'POST',
                     headers: {
@@ -715,16 +720,19 @@
                 });
                 
                 const data = await response.json();
+                console.log('可预订车次响应:', data);
                 
                 if (data.success) {
                     if (data.data.length === 0) {
-                        displayResult('booking-result', '未找到符合条件的车次', false);
+                        displayResult('booking-result', '未找到符合条件的车次，请检查出发站、到达站是否正确', false);
                     } else {
+                        // 清空之前的错误信息
+                        document.getElementById('booking-result').innerHTML = '';
                         // 显示车次选择界面
                         showTrainSelection(data.data);
                     }
                 } else {
-                    displayResult('booking-result', data, false);
+                    displayResult('booking-result', `查询失败: ${data.message}`, false);
                 }
             } catch (error) {
                 displayResult('booking-result', `查询错误: ${error.message}`, false);
@@ -767,11 +775,12 @@
                 html += `<div class="seat-types">`;
                 
                 train.seatTypes.forEach(seatType => {
+                    // 传递train.id作为trainId，确保参数正确
                     html += `<div class="seat-type-item" 
                              onclick="selectTrain(${train.id}, '${seatType.type}', ${seatType.price}, '${train.name}', '${train.date}')">`;
                     html += `<strong>${seatType.type}</strong><br>`;
-                    html += `价格: ¥${seatType.price}<br>`;
-                    html += `余票: ${seatType.availableSeats}张`;
+                    html += `💰 ¥${seatType.price}<br>`;
+                    html += `🎫 余票 ${seatType.availableSeats}张`;
                     html += `</div>`;
                 });
                 
@@ -788,9 +797,16 @@
             const passengerId = document.getElementById('passenger-id').value;
             const fromStation = document.getElementById('book-from-station').value;
             const toStation = document.getElementById('book-to-station').value;
+            const bookingDate = document.getElementById('book-date').value; // 从表单重新获取日期
             
-            if (confirm(`确认预订：\\n车次: ${trainName}\\n日期: ${date}\\n座位类型: ${seatType}\\n价格: ¥${price}\\n乘客: ${passengerName}\\n行程: ${fromStation} → ${toStation}\\n\\n确认预订吗？`)) {
-                bookTicket(trainId, seatType, passengerName, passengerId, fromStation, toStation, date);
+            // 验证输入数据
+            if (!passengerName || !passengerId || !fromStation || !toStation || !bookingDate) {
+                alert('请确保所有信息都已填写完整');
+                return;
+            }
+            
+            if (confirm(`确认预订：\\n车次: ${trainName}\\n日期: ${bookingDate}\\n座位类型: ${seatType}\\n价格: ¥${price}\\n乘客: ${passengerName}\\n行程: ${fromStation} → ${toStation}\\n\\n确认预订吗？`)) {
+                bookTicket(trainId, seatType, passengerName, passengerId, fromStation, toStation, bookingDate);
             }
         }
         
@@ -806,27 +822,56 @@
             showLoading();
             
             try {
+                // 确保日期格式正确（YYYY-MM-DD）
+                let formattedDate = date;
+                if (date instanceof Date || date.includes('T')) {
+                    formattedDate = new Date(date).toISOString().split('T')[0];
+                }
+                
+                console.log('发送预订请求:', {
+                    trainId,
+                    seatType,
+                    passengerName,
+                    passengerId,
+                    fromStation,
+                    toStation,
+                    date: formattedDate
+                });
+                
                 const response = await fetch(`${API_BASE}/book`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        trainId,
+                        trainId: parseInt(trainId), // 确保trainId是数字
                         seatType,
                         passengerName,
                         passengerId,
                         fromStation,
                         toStation,
-                        date
+                        date: formattedDate // 使用格式化后的日期
                     })
                 });
                 
                 const data = await response.json();
+                console.log('预订响应:', data);
                 
                 if (data.success) {
-                    // 预订成功，显示结果并返回第一步
-                    displayResult('booking-result', data, true);
+                    // 预订成功，显示结果
+                    const resultElement = document.getElementById('booking-result');
+                    resultElement.className = 'result success';
+                    resultElement.innerHTML = `
+                        <h4>🎉 预订成功！</h4>
+                        <p><strong>订单ID:</strong> ${data.data.orderId}</p>
+                        <p><strong>车次:</strong> ${data.data.trainId}</p>
+                        <p><strong>座位:</strong> ${data.data.carriageNumber}车厢 ${data.data.seatNumber}号 (${data.data.seatType})</p>
+                        <p><strong>乘客:</strong> ${data.data.passengerName} (${data.data.passengerId})</p>
+                        <p><strong>行程:</strong> ${data.data.fromStation} → ${data.data.toStation}</p>
+                        <p><strong>日期:</strong> ${data.data.date}</p>
+                        <p><strong>价格:</strong> ¥${data.data.price}</p>
+                        <p><strong>状态:</strong> ${data.data.status}</p>
+                    `;
                     
                     // 清空表单
                     document.getElementById('passenger-name').value = '';
@@ -835,12 +880,12 @@
                     document.getElementById('book-to-station').value = '';
                     document.getElementById('book-date').value = '';
                     
-                    // 返回第一步
+                    // 3秒后返回第一步
                     setTimeout(() => {
                         backToStep1();
                     }, 3000);
                 } else {
-                    displayResult('booking-result', data, false);
+                    displayResult('booking-result', `预订失败: ${data.message}`, false);
                 }
             } catch (error) {
                 displayResult('booking-result', `预订错误: ${error.message}`, false);

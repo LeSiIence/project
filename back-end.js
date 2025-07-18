@@ -363,24 +363,45 @@ async function getAvailableSeats(scheduleId, seatType, fromStation, toStation) {
         
         const totalSeats = totalSeatsRows[0].total;
         
-        // 获取在这个区间内已经被占用的座位
+        // 获取火车ID和出发到达站的顺序
+        const [trainInfo] = await connection.execute(`
+            SELECT ts.train_id, 
+                   ts_from.station_order as from_order,
+                   ts_to.station_order as to_order
+            FROM train_schedules ts
+            JOIN train_stations ts_from ON ts.train_id = ts_from.train_id AND ts_from.station_name = ?
+            JOIN train_stations ts_to ON ts.train_id = ts_to.train_id AND ts_to.station_name = ?
+            WHERE ts.id = ?
+        `, [fromStation, toStation, scheduleId]);
+        
+        if (trainInfo.length === 0) {
+            return 0;
+        }
+        
+        const { from_order, to_order } = trainInfo[0];
+        
+        // 获取在这个区间内已经被占用的座位数量
+        // 两个区间冲突的条件：NOT (区间1结束 <= 区间2开始 OR 区间1开始 >= 区间2结束)
         const [occupiedSeatsRows] = await connection.execute(`
             SELECT COUNT(DISTINCT sa.seat_id) as occupied
             FROM seat_allocations sa
             JOIN seats s ON sa.seat_id = s.id
             JOIN carriages c ON s.carriage_id = c.id
-            JOIN train_stations ts1 ON c.train_id = ts1.train_id AND ts1.station_name = sa.from_station
-            JOIN train_stations ts2 ON c.train_id = ts2.train_id AND ts2.station_name = sa.to_station
-            JOIN train_stations ts3 ON c.train_id = ts3.train_id AND ts3.station_name = ?
-            JOIN train_stations ts4 ON c.train_id = ts4.train_id AND ts4.station_name = ?
+            JOIN train_stations ts_from ON c.train_id = ts_from.train_id AND ts_from.station_name = sa.from_station
+            JOIN train_stations ts_to ON c.train_id = ts_to.train_id AND ts_to.station_name = sa.to_station
             WHERE sa.schedule_id = ? AND s.seat_type = ? AND sa.is_deleted = FALSE
-            AND NOT (ts2.station_order <= ts3.station_order OR ts1.station_order >= ts4.station_order)
-        `, [fromStation, toStation, scheduleId, seatType]);
+            AND NOT (ts_to.station_order <= ? OR ts_from.station_order >= ?)
+        `, [scheduleId, seatType, from_order, to_order]);
         
         const occupiedSeats = occupiedSeatsRows[0].occupied || 0;
         
+        console.log(`座位统计 - 总座位: ${totalSeats}, 已占用: ${occupiedSeats}, 可用: ${totalSeats - occupiedSeats}`);
+        
         return Math.max(0, totalSeats - occupiedSeats);
         
+    } catch (error) {
+        console.error('计算可用座位数失败:', error);
+        return 0;
     } finally {
         connection.release();
     }
@@ -404,11 +425,29 @@ async function getTotalSeats(trainId, seatType) {
     }
 }
 
-// 查找可用座位
+// 查找可用座位（优化版本）
 async function findAvailableSeat(scheduleId, seatType, fromStation, toStation) {
     const connection = await pool.getConnection();
     try {
-        // 查找所有该座位类型的座位
+        // 获取火车ID和出发到达站的顺序
+        const [trainInfo] = await connection.execute(`
+            SELECT ts.train_id, 
+                   ts_from.station_order as from_order,
+                   ts_to.station_order as to_order
+            FROM train_schedules ts
+            JOIN train_stations ts_from ON ts.train_id = ts_from.train_id AND ts_from.station_name = ?
+            JOIN train_stations ts_to ON ts.train_id = ts_to.train_id AND ts_to.station_name = ?
+            WHERE ts.id = ?
+        `, [fromStation, toStation, scheduleId]);
+        
+        if (trainInfo.length === 0) {
+            console.error('未找到车次信息或站点信息');
+            return null;
+        }
+        
+        const { from_order, to_order } = trainInfo[0];
+        
+        // 查找所有该座位类型的座位，按车厢号和座位号排序
         const [seatRows] = await connection.execute(`
             SELECT s.id, s.seat_number, c.carriage_number
             FROM seats s
@@ -418,39 +457,40 @@ async function findAvailableSeat(scheduleId, seatType, fromStation, toStation) {
             ORDER BY c.carriage_number, s.seat_number
         `, [scheduleId, seatType]);
         
+        console.log(`找到 ${seatRows.length} 个 ${seatType} 座位`);
+        
         // 检查每个座位是否在指定区间内可用
         for (const seat of seatRows) {
+            // 检查该座位是否与现有预订存在区间冲突
             const [conflictRows] = await connection.execute(`
                 SELECT COUNT(*) as conflicts
                 FROM seat_allocations sa
-                JOIN train_stations ts1 ON sa.schedule_id = ? AND EXISTS (
+                JOIN train_stations ts_from ON sa.schedule_id = ? AND EXISTS (
                     SELECT 1 FROM train_schedules ts 
-                    JOIN train_stations tst ON ts.train_id = tst.train_id 
-                    WHERE ts.id = sa.schedule_id AND tst.station_name = sa.from_station
+                    WHERE ts.id = sa.schedule_id AND ts.train_id = (
+                        SELECT train_id FROM train_schedules WHERE id = ?
+                    )
                 ) AND EXISTS (
-                    SELECT 1 FROM train_schedules ts 
-                    JOIN train_stations tst ON ts.train_id = tst.train_id 
-                    WHERE ts.id = sa.schedule_id AND tst.station_name = sa.to_station
+                    SELECT 1 FROM train_stations tst 
+                    WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                    AND tst.station_name = sa.from_station
                 )
-                JOIN train_stations ts2 ON EXISTS (
-                    SELECT 1 FROM train_schedules ts 
-                    JOIN train_stations tst ON ts.train_id = tst.train_id 
-                    WHERE ts.id = sa.schedule_id AND tst.station_name = ?
-                ) AND EXISTS (
-                    SELECT 1 FROM train_schedules ts 
-                    JOIN train_stations tst ON ts.train_id = tst.train_id 
-                    WHERE ts.id = sa.schedule_id AND tst.station_name = ?
+                JOIN train_stations ts_to ON EXISTS (
+                    SELECT 1 FROM train_stations tst 
+                    WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                    AND tst.station_name = sa.to_station
                 )
                 WHERE sa.seat_id = ? AND sa.schedule_id = ? AND sa.is_deleted = FALSE
                 AND NOT (
-                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = sa.to_station) <= 
-                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = ?) OR
-                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = sa.from_station) >= 
-                    (SELECT station_order FROM train_stations tst JOIN train_schedules ts ON tst.train_id = ts.train_id WHERE ts.id = sa.schedule_id AND tst.station_name = ?)
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.to_station) <= ? OR
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.from_station) >= ?
                 )
-            `, [scheduleId, fromStation, toStation, seat.id, scheduleId, fromStation, toStation]);
+            `, [scheduleId, scheduleId, scheduleId, scheduleId, seat.id, scheduleId, scheduleId, from_order, scheduleId, to_order]);
+            
+            console.log(`座位 ${seat.seat_number} (ID: ${seat.id}) 冲突检查: ${conflictRows[0].conflicts} 个冲突`);
             
             if (conflictRows[0].conflicts === 0) {
+                console.log(`分配座位: ${seat.carriage_number}车厢 ${seat.seat_number}号`);
                 return {
                     seatId: seat.id,
                     seatNumber: seat.seat_number,
@@ -459,8 +499,12 @@ async function findAvailableSeat(scheduleId, seatType, fromStation, toStation) {
             }
         }
         
+        console.log('未找到可用座位');
         return null;
         
+    } catch (error) {
+        console.error('查找可用座位失败:', error);
+        return null;
     } finally {
         connection.release();
     }
@@ -477,19 +521,132 @@ async function calculatePrice(trainId, fromStation, toStation, seatType) {
             WHERE train_id = ? AND from_station = ? AND to_station = ? AND seat_type = ?
         `, [trainId, fromStation, toStation, seatType]);
         
-        return priceRows.length > 0 ? priceRows[0].price : 0;
+        if (priceRows.length > 0) {
+            console.log(`价格查询成功: ${priceRows[0].price}元`);
+            return priceRows[0].price;
+        }
         
+        console.log('未找到对应的价格信息');
+        return 0;
+        
+    } catch (error) {
+        console.error('价格计算失败:', error);
+        return 0;
     } finally {
         connection.release();
     }
 }
 
-// 预订车票
+// 验证订单写入结果
+async function verifyOrderCreation(connection, orderId, scheduleId, seatId, fromStation, toStation, passengerName, passengerId) {
+    try {
+        // 验证订单是否正确写入
+        const [orderRows] = await connection.execute(`
+            SELECT * FROM orders WHERE id = ?
+        `, [orderId]);
+        
+        if (orderRows.length === 0) {
+            throw new Error('订单写入失败');
+        }
+        
+        const order = orderRows[0];
+        console.log('订单验证 - 订单信息:', {
+            id: order.id,
+            schedule_id: order.schedule_id,
+            from_station: order.from_station,
+            to_station: order.to_station,
+            passenger_name: order.passenger_name,
+            passenger_id: order.passenger_id,
+            price: order.price,
+            status: order.status
+        });
+        
+        // 验证座位分配是否正确写入
+        const [allocationRows] = await connection.execute(`
+            SELECT * FROM seat_allocations WHERE order_id = ?
+        `, [orderId]);
+        
+        if (allocationRows.length === 0) {
+            throw new Error('座位分配写入失败');
+        }
+        
+        const allocation = allocationRows[0];
+        console.log('座位分配验证 - 分配信息:', {
+            id: allocation.id,
+            schedule_id: allocation.schedule_id,
+            seat_id: allocation.seat_id,
+            from_station: allocation.from_station,
+            to_station: allocation.to_station,
+            passenger_name: allocation.passenger_name,
+            passenger_id: allocation.passenger_id,
+            order_id: allocation.order_id
+        });
+        
+        // 验证座位区间占用是否正确
+        const [conflictCheck] = await connection.execute(`
+            SELECT COUNT(*) as conflicts
+            FROM seat_allocations sa1
+            JOIN seat_allocations sa2 ON sa1.seat_id = sa2.seat_id 
+                AND sa1.schedule_id = sa2.schedule_id 
+                AND sa1.id != sa2.id
+            JOIN train_stations ts1_from ON sa1.schedule_id = ? AND EXISTS (
+                SELECT 1 FROM train_schedules ts 
+                WHERE ts.id = sa1.schedule_id AND ts.train_id = (
+                    SELECT train_id FROM train_schedules WHERE id = ?
+                )
+            ) AND EXISTS (
+                SELECT 1 FROM train_stations tst 
+                WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                AND tst.station_name = sa1.from_station
+            )
+            JOIN train_stations ts1_to ON EXISTS (
+                SELECT 1 FROM train_stations tst 
+                WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                AND tst.station_name = sa1.to_station
+            )
+            JOIN train_stations ts2_from ON EXISTS (
+                SELECT 1 FROM train_stations tst 
+                WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                AND tst.station_name = sa2.from_station
+            )
+            JOIN train_stations ts2_to ON EXISTS (
+                SELECT 1 FROM train_stations tst 
+                WHERE tst.train_id = (SELECT train_id FROM train_schedules WHERE id = ?) 
+                AND tst.station_name = sa2.to_station
+            )
+            WHERE sa1.order_id = ? AND sa1.is_deleted = FALSE AND sa2.is_deleted = FALSE
+            AND NOT (
+                (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa1.to_station) <= 
+                (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa2.from_station) OR
+                (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa1.from_station) >= 
+                (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa2.to_station)
+            )
+        `, [scheduleId, scheduleId, scheduleId, scheduleId, scheduleId, scheduleId, orderId, scheduleId, scheduleId, scheduleId, scheduleId]);
+        
+        const conflicts = conflictCheck[0].conflicts;
+        console.log(`区间冲突检查: ${conflicts} 个冲突`);
+        
+        if (conflicts > 0) {
+            throw new Error(`座位区间存在冲突: ${conflicts} 个`);
+        }
+        
+        console.log('✓ 订单和座位分配验证通过');
+        return true;
+        
+    } catch (error) {
+        console.error('订单验证失败:', error);
+        throw error;
+    }
+}
+
+// 预订车票（完善版本）
 app.post('/book', async (req, res) => {
     const connection = await pool.getConnection();
     try {
         const { trainId, seatType, passengerName, passengerId, fromStation, toStation, date } = req.body;
         const queryDate = date || new Date().toISOString().split('T')[0];
+        
+        console.log(`开始预订车票 - 车次: ${trainId}, 座位类型: ${seatType}, 乘客: ${passengerName}, 区间: ${fromStation} -> ${toStation}, 日期: ${queryDate}`);
         
         // 输入验证
         if (!trainId || !seatType || !passengerName || !passengerId || !fromStation || !toStation) {
@@ -510,30 +667,47 @@ app.post('/book', async (req, res) => {
         }
         
         const scheduleId = scheduleRows[0].id;
+        console.log(`车次时刻表ID: ${scheduleId}`);
         
         // 验证出发站和到达站的顺序
         const [stationOrderRows] = await connection.execute(`
             SELECT 
-                (SELECT station_order FROM train_stations WHERE train_id = ? AND station_name = ?) as from_order,
-                (SELECT station_order FROM train_stations WHERE train_id = ? AND station_name = ?) as to_order
+                ts1.station_order as from_order,
+                ts2.station_order as to_order
+            FROM train_stations ts1, train_stations ts2
+            WHERE ts1.train_id = ? AND ts1.station_name = ?
+            AND ts2.train_id = ? AND ts2.station_name = ?
         `, [trainId, fromStation, trainId, toStation]);
         
-        if (stationOrderRows.length === 0 || !stationOrderRows[0].from_order || !stationOrderRows[0].to_order) {
+        if (stationOrderRows.length === 0) {
             await connection.rollback();
             return sendError(res, '出发站或到达站不在此车次路线上', 404);
         }
         
-        if (stationOrderRows[0].from_order >= stationOrderRows[0].to_order) {
+        const { from_order, to_order } = stationOrderRows[0];
+        
+        if (from_order >= to_order) {
             await connection.rollback();
             return sendError(res, '出发站必须在到达站之前', 400);
         }
         
-        // 查找可用座位
+        console.log(`站点顺序验证通过 - 出发站顺序: ${from_order}, 到达站顺序: ${to_order}`);
+        
+        // 检查可用座位数
+        const availableSeatCount = await getAvailableSeats(scheduleId, seatType, fromStation, toStation);
+        if (availableSeatCount <= 0) {
+            await connection.rollback();
+            return sendError(res, '该座位类型已售完', 400);
+        }
+        
+        console.log(`可用座位数: ${availableSeatCount}`);
+        
+        // 查找具体的可用座位
         const availableSeat = await findAvailableSeat(scheduleId, seatType, fromStation, toStation);
         
         if (!availableSeat) {
             await connection.rollback();
-            return sendError(res, '该座位类型已售完或无可用座位', 400);
+            return sendError(res, '座位分配失败，请稍后重试', 500);
         }
         
         // 计算价格
@@ -544,38 +718,55 @@ app.post('/book', async (req, res) => {
             return sendError(res, '价格计算错误', 400);
         }
         
+        // 获取train_id用于订单
+        const [trainIdRows] = await connection.execute(`
+            SELECT train_id FROM train_schedules WHERE id = ?
+        `, [scheduleId]);
+        
+        const orderTrainId = trainIdRows[0].train_id;
+        
         // 创建订单
         const [orderResult] = await connection.execute(`
-            INSERT INTO orders (schedule_id, from_station, to_station, seat_type, passenger_name, passenger_id, price)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [scheduleId, fromStation, toStation, seatType, passengerName, passengerId, totalPrice]);
+            INSERT INTO orders (schedule_id, train_id, from_station, to_station, seat_type, passenger_name, passenger_id, price, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')
+        `, [scheduleId, orderTrainId, fromStation, toStation, seatType, passengerName, passengerId, totalPrice]);
+        
+        const orderId = orderResult.insertId;
+        console.log(`订单创建成功 - 订单ID: ${orderId}`);
         
         // 分配座位
-        await connection.execute(`
+        const [allocationResult] = await connection.execute(`
             INSERT INTO seat_allocations (schedule_id, seat_id, from_station, to_station, passenger_name, passenger_id, order_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [scheduleId, availableSeat.seatId, fromStation, toStation, passengerName, passengerId, orderResult.insertId]);
+        `, [scheduleId, availableSeat.seatId, fromStation, toStation, passengerName, passengerId, orderId]);
+        
+        console.log(`座位分配成功 - 分配ID: ${allocationResult.insertId}`);
+        
+        // 验证订单和座位分配
+        await verifyOrderCreation(connection, orderId, scheduleId, availableSeat.seatId, fromStation, toStation, passengerName, passengerId);
         
         await connection.commit();
+        console.log('✓ 预订完成，事务提交成功');
         
         sendSuccess(res, {
-            orderId: orderResult.insertId,
-            trainId,
-            seatType,
+            orderId: orderId,
+            trainId: trainId,
+            seatType: seatType,
             seatNumber: availableSeat.seatNumber,
             carriageNumber: availableSeat.carriageNumber,
-            passengerName,
-            passengerId,
-            fromStation,
-            toStation,
+            passengerName: passengerName,
+            passengerId: passengerId,
+            fromStation: fromStation,
+            toStation: toStation,
             date: queryDate,
-            price: totalPrice
+            price: totalPrice,
+            status: 'confirmed'
         }, '预订成功');
         
     } catch (error) {
         await connection.rollback();
         console.error('预订失败:', error);
-        sendError(res, '预订失败');
+        sendError(res, `预订失败: ${error.message}`);
     } finally {
         connection.release();
     }
