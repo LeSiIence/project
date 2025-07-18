@@ -491,10 +491,43 @@
                                 <div class="train-route">${train.from} → ${train.to}</div>
                             </div>
                             <div style="text-align: right; color: #666;">
-                                <div>日期: ${train.date}</div>
+                                <div>日期: ${formatDate(train.date)}</div>
                                 <div>车次ID: ${train.id}</div>
                             </div>
                         </div>
+                        
+                        <!-- 完整时刻表显示 -->
+                        <div class="schedule-info" style="margin: 15px 0; padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                            <div style="font-weight: bold; margin-bottom: 10px; color: #333;">🕐 列车时刻表</div>
+                            <div class="schedule-list">
+                `;
+                
+                // 显示完整时刻表
+                if (train.schedule && train.schedule.length > 0) {
+                    train.schedule.forEach((station, index) => {
+                        const isFirst = index === 0;
+                        const isLast = index === train.schedule.length - 1;
+                        
+                        html += `
+                            <div class="schedule-item" style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                <div style="flex: 1;">
+                                    <span style="font-weight: bold; color: #333;">${station.station}</span>
+                                    <span style="color: #666; font-size: 12px; margin-left: 10px;">${station.distance}km</span>
+                                </div>
+                                <div style="text-align: right; color: #666; font-size: 14px;">
+                                    ${!isFirst ? `到达: ${station.arrival || '---'}` : ''}
+                                    ${!isFirst && !isLast ? ' | ' : ''}
+                                    ${!isLast ? `出发: ${station.departure || '---'}` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                        
                         <div class="seat-types">
                 `;
                 
@@ -629,6 +662,34 @@
             }
         }
 
+        // 日期格式化函数 - 避免时区转换问题
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            
+            // 如果已经是YYYY-MM-DD格式，直接返回
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+                return dateString;
+            }
+            
+            // 如果包含时间信息，提取日期部分
+            if (dateString.includes('T')) {
+                return dateString.split('T')[0];
+            }
+            
+            // 其他情况，尝试安全格式化
+            try {
+                // 使用正则表达式提取日期部分，避免时区问题
+                const match = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
+                if (match) {
+                    return `${match[1]}-${match[2]}-${match[3]}`;
+                }
+                return dateString;
+            } catch (error) {
+                console.warn('日期格式化失败:', error);
+                return dateString;
+            }
+        }
+
         // 显示订单列表
         function displayOrders(orders) {
             const orderList = document.getElementById('orderList');
@@ -644,7 +705,7 @@
                         <tr>
                             <th>订单号</th>
                             <th>车次</th>
-                            <th>日期</th>
+                            <th>出发日期时间</th>
                             <th>行程</th>
                             <th>座位</th>
                             <th>乘客</th>
@@ -661,11 +722,17 @@
                 const seatInfo = order.carriageNumber && order.seatNumber ? 
                     `${order.carriageNumber}车厢 ${order.seatNumber}号` : '未分配';
                 
+                // 格式化日期和开车时间
+                let dateTimeInfo = formatDate(order.date);
+                if (order.departureTime) {
+                    dateTimeInfo += `<br><small style="color: #666;">开车时间: ${order.departureTime}</small>`;
+                }
+                
                 html += `
                     <tr>
                         <td>${order.id}</td>
                         <td>${order.trainName || 'N/A'}</td>
-                        <td>${order.date || 'N/A'}</td>
+                        <td>${dateTimeInfo}</td>
                         <td>${order.fromStation} → ${order.toStation}</td>
                         <td>${seatInfo} (${order.seatType})</td>
                         <td>${order.passengerName}<br><small>${order.passengerId}</small></td>

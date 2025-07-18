@@ -17,7 +17,7 @@ if %errorlevel% equ 0 (
 echo Starting server...
 echo.
 echo Server: http://localhost:3000
-echo Test page: http://localhost:3000/mysql-test.html
+echo Test page: http://localhost:3000/
 echo.
 echo Press Ctrl+C to stop
 echo.

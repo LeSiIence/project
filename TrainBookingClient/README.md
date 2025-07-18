@@ -75,7 +75,7 @@
 4. **构建项目**
    ```batch
    cd TrainBookingClient
-   build.bat
+   build_simple.bat
    ```
 
 ### Linux/macOS
@@ -175,7 +175,7 @@ TrainBookingClient/
 ├── MainWindow.h           # 主窗口头文件
 ├── MainWindow.cpp         # 主窗口实现
 ├── CMakeLists.txt         # CMake构建配置
-├── build.bat              # Windows构建脚本
+├── build_simple.bat              # Windows构建脚本
 ├── README.md              # 项目说明文档
 └── build/                 # 构建输出目录
     └── bin/
