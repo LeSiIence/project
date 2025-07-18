@@ -290,6 +290,7 @@ GET /orders?passengerName=张三&passengerId=110101199001011234
             "id": 1,
             "trainName": "G1",
             "date": "2025-07-17",
+            "departureTime": "08:00",
             "fromStation": "北京",
             "toStation": "上海",
             "seatType": "二等座",
@@ -305,6 +306,24 @@ GET /orders?passengerName=张三&passengerId=110101199001011234
     "message": "查询订单成功"
 }
 ```
+
+#### 字段说明
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| id | integer | 订单ID |
+| trainName | string | 车次名称 |
+| date | string | 开车日期 (YYYY-MM-DD) |
+| departureTime | string | 出发站开车时间 (HH:mm) |
+| fromStation | string | 出发站 |
+| toStation | string | 到达站 |
+| seatType | string | 座位类型 |
+| seatNumber | string | 座位号 |
+| carriageNumber | integer | 车厢号 |
+| passengerName | string | 乘客姓名 |
+| passengerId | string | 乘客身份证号 |
+| price | number | 票价 |
+| status | string | 订单状态 |
+| createdAt | string | 创建时间 |
 
 ### 6. 取消订单
 **DELETE** `/orders/:orderId`

@@ -489,5 +489,5 @@ C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.h
  mdp:C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h
  mdp:C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.h
  mdp:C:/Users/admin/Desktop/project/TrainBookingClient/build/TrainBookingClient_autogen/moc_predefs.h
-C:/Users/admin/Desktop/project/TrainBookingClient/main.cpp
 C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.cpp
+C:/Users/admin/Desktop/project/TrainBookingClient/main.cpp

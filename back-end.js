@@ -55,6 +55,53 @@ function sendError(res, message = '操作失败', status = 500) {
     });
 }
 
+// 安全的日期格式化函数，避免时区问题
+function formatDateSafely(dateInput) {
+    if (!dateInput) return null;
+    
+    // 如果已经是字符串格式的日期，检查是否符合YYYY-MM-DD
+    if (typeof dateInput === 'string') {
+        // 如果已经是YYYY-MM-DD格式，直接返回
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+            return dateInput;
+        }
+        
+        // 如果包含时间信息，提取日期部分
+        if (dateInput.includes('T')) {
+            return dateInput.split('T')[0];
+        }
+        
+        // 尝试从字符串中提取日期
+        const match = dateInput.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            return `${match[1]}-${match[2]}-${match[3]}`;
+        }
+    }
+    
+    // 如果是Date对象，安全地格式化
+    if (dateInput instanceof Date) {
+        const year = dateInput.getFullYear();
+        const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+        const day = String(dateInput.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // 其他情况，尝试转换为Date对象
+    try {
+        const date = new Date(dateInput);
+        if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    } catch (error) {
+        console.warn('日期格式化失败:', error);
+    }
+    
+    return null;
+}
+
 // 引入数据库管理模块
 const { initDatabase, insertTestData } = require('./manage_database');
 
@@ -284,14 +331,14 @@ app.post('/search-bookable-trains', async (req, res) => {
                 name: trainRow.name,
                 from: trainRow.from_station,
                 to: trainRow.to_station,
-                date: trainRow.departure_date,
+                date: trainRow.departure_date ? formatDateSafely(trainRow.departure_date) : null,
                 scheduleId: trainRow.schedule_id,
                 seatTypes: []
             };
             
-            // 获取时刻表信息
+            // 获取完整的时刻表信息
             const [scheduleRows] = await pool.execute(`
-                SELECT station_name, station_order, arrival_time, departure_time
+                SELECT station_name, station_order, arrival_time, departure_time, distance_km
                 FROM train_stations
                 WHERE train_id = ?
                 ORDER BY station_order
@@ -301,7 +348,8 @@ app.post('/search-bookable-trains', async (req, res) => {
                 station: s.station_name,
                 order: s.station_order,
                 arrival: s.arrival_time,
-                departure: s.departure_time
+                departure: s.departure_time,
+                distance: s.distance_km
             }));
             
             // 获取座位类型和可用座位
@@ -484,8 +532,10 @@ async function findAvailableSeat(scheduleId, seatType, fromStation, toStation) {
                 )
                 WHERE sa.seat_id = ? AND sa.schedule_id = ? AND sa.is_deleted = FALSE
                 AND NOT (
-                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.to_station) <= ? OR
-                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.from_station) >= ?
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.to_station) <= 
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.from_station) OR
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.from_station) >= 
+                    (SELECT station_order FROM train_stations WHERE train_id = (SELECT train_id FROM train_schedules WHERE id = ?) AND station_name = sa.to_station)
                 )
             `, [scheduleId, scheduleId, scheduleId, scheduleId, seat.id, scheduleId, scheduleId, from_order, scheduleId, to_order]);
             
@@ -784,10 +834,12 @@ app.get('/orders', async (req, res) => {
                 o.id, o.schedule_id, o.from_station, o.to_station,
                 o.seat_type, o.passenger_name, o.passenger_id, o.price, o.status, o.created_at,
                 t.name as train_name, ts.departure_date,
+                ts_from.departure_time as departure_time,
                 sa.seat_id, s.seat_number, c.carriage_number
             FROM orders o
             JOIN train_schedules ts ON o.schedule_id = ts.id
             JOIN trains t ON ts.train_id = t.id
+            LEFT JOIN train_stations ts_from ON t.id = ts_from.train_id AND ts_from.station_name = o.from_station
             LEFT JOIN seat_allocations sa ON o.id = sa.order_id AND sa.is_deleted = FALSE
             LEFT JOIN seats s ON sa.seat_id = s.id
             LEFT JOIN carriages c ON s.carriage_id = c.id
@@ -815,7 +867,8 @@ app.get('/orders', async (req, res) => {
         const orders = rows.map(row => ({
             id: row.id,
             trainName: row.train_name,
-            date: row.departure_date,
+            date: formatDateSafely(row.departure_date),
+            departureTime: row.departure_time,
             fromStation: row.from_station,
             toStation: row.to_station,
             seatType: row.seat_type,
@@ -942,15 +995,13 @@ app.put('/orders/:orderId/restore', async (req, res) => {
         }
         
         // 恢复订单
-        await connection.execute(`
-            UPDATE orders 
+        await connection.execute(`            UPDATE orders 
             SET is_deleted = FALSE, deleted_at = NULL, status = 'confirmed'
             WHERE id = ?
         `, [orderId]);
         
         // 恢复座位分配
-        await connection.execute(`
-            UPDATE seat_allocations 
+        await connection.execute(`            UPDATE seat_allocations 
             SET is_deleted = FALSE, deleted_at = NULL
             WHERE order_id = ?
         `, [orderId]);
@@ -1006,7 +1057,8 @@ app.get('/orders/deleted', async (req, res) => {
         const orders = rows.map(row => ({
             id: row.id,
             trainName: row.train_name,
-            date: row.departure_date,
+            date: row.departure_date ? new Date(row.departure_date).toISOString().split('T')[0] : null,
+            departureTime: row.departure_time,
             fromStation: row.from_station,
             toStation: row.to_station,
             seatType: row.seat_type,
@@ -1076,3 +1128,4 @@ process.on('SIGINT', async () => {
 
 // 启动服务器
 startServer(); 
+
