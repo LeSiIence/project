@@ -69,15 +69,24 @@ node back-end.js
 
 ### 5. 访问应用
 
+#### 本地访问
 - **主页**: http://localhost:3000
 - **测试页面**: http://localhost:3000/mysql-test.html
 - **数据库连接测试**: http://localhost:3000/test-db
+
+#### 远程访问
+- **远程Web界面**: https://train.cornmax.top/booking-system-remote.html
+- **本地远程界面**: http://localhost:3000/booking-system-remote.html
+
+**注意**: 远程访问需要确保服务器支持HTTPS协议，避免混合内容错误。
 
 ## 📁 项目结构
 
 ```
 project/
 ├── back-end.js                   # 主服务器文件
+├── booking-system.html           # 本地Web界面
+├── booking-system-remote.html    # 远程Web界面（HTTPS）
 ├── mysql-test.html               # Web测试页面
 ├── package.json                  # 项目配置
 ├── package-lock.json             # 依赖锁定
@@ -113,6 +122,13 @@ project/
 - 订单查询测试
 - 订单管理测试（软删除功能）
 - 压力测试
+
+### 远程访问测试
+访问 https://train.cornmax.top/booking-system-remote.html 进行：
+- 远程服务器连接测试
+- HTTPS协议验证
+- 跨域请求测试
+- 完整功能验证
 
 ### API测试
 ```bash
@@ -162,8 +178,28 @@ const PORT = process.env.PORT || 3000;
 1. **MySQL连接失败** - 检查服务状态和密码配置
 2. **端口3000被占用** - 使用启动脚本会自动处理
 3. **依赖安装失败** - 运行 `npm install` 重新安装
+4. **HTTPS混合内容错误** - 确保远程服务器支持HTTPS协议
+5. **跨域请求失败** - 检查服务器CORS配置
+6. **远程连接超时** - 检查网络连接和服务器状态
 
 
+
+## 🌐 远程访问说明
+
+### HTTPS支持
+- 远程Web界面使用HTTPS协议确保安全性
+- 避免浏览器混合内容错误
+- 支持跨域请求和CORS
+
+### 访问方式
+1. **直接访问**: https://train.cornmax.top/booking-system-remote.html
+2. **本地测试**: http://localhost:3000/booking-system-remote.html
+3. **Qt客户端**: 连接本地服务器 http://localhost:3000
+
+### 安全注意事项
+- 远程访问需要有效的SSL证书
+- 确保服务器支持HTTPS协议
+- 注意网络连接稳定性
 
 ## 📄 许可证
 
@@ -171,4 +207,4 @@ const PORT = process.env.PORT || 3000;
 
 ---
 
-**注意**: 本项目包含完整的MySQL数据库事务支持和并发控制，适合学习Node.js后端开发和数据库操作。 
+**注意**: 本项目包含完整的MySQL数据库事务支持和并发控制，适合学习Node.js后端开发和数据库操作。支持本地和远程两种访问方式。 
