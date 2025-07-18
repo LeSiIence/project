@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QStandardPaths>
+#include <QDebug>
 
 // 静态常量定义
 const QString MainWindow::API_BASE = "http://localhost:3000";
@@ -241,6 +242,12 @@ void MainWindow::bookTicket()
     QString priceStr = m_trainTable->item(currentRow, 5)->text();
     double price = priceStr.replace("¥", "").toDouble();
     
+    // 调试输出
+    qDebug() << "预订请求 - 车次:" << trainName 
+             << "座位类型:" << seatType 
+             << "价格字符串:" << priceStr 
+             << "解析的价格:" << price;
+    
     // 确认对话框
     QString confirmText = QString("确认预订以下车票？\n\n"
                                  "车次: %1\n"
@@ -348,11 +355,17 @@ void MainWindow::onSearchFinished(QNetworkReply *reply)
         return;
     }
     
-    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+    QByteArray responseData = reply->readAll();
+    qDebug() << "API响应数据:" << responseData;
+    
+    QJsonDocument doc = QJsonDocument::fromJson(responseData);
     QJsonObject response = doc.object();
+    
+    qDebug() << "解析的JSON响应:" << doc.toJson(QJsonDocument::Compact);
     
     if (response["success"].toBool()) {
         QJsonArray trains = response["data"].toArray();
+        qDebug() << "找到车次数量:" << trains.size();
         m_currentTrains = trains;
         displayTrains(trains);
         
@@ -464,9 +477,24 @@ void MainWindow::displayTrains(const QJsonArray &trains)
             m_trainTable->setItem(row, 2, new QTableWidgetItem(train["to"].toString()));
             m_trainTable->setItem(row, 3, new QTableWidgetItem(train["date"].toString()));
             m_trainTable->setItem(row, 4, new QTableWidgetItem(seatType["type"].toString()));
-            m_trainTable->setItem(row, 5, new QTableWidgetItem(QString("¥%1").arg(seatType["price"].toDouble())));
+            // 安全地获取价格，处理字符串和数字两种情况
+            double price = 0.0;
+            QJsonValue priceValue = seatType["price"];
+            if (priceValue.isString()) {
+                price = priceValue.toString().toDouble();
+            } else if (priceValue.isDouble()) {
+                price = priceValue.toDouble();
+            }
+            
+            m_trainTable->setItem(row, 5, new QTableWidgetItem(QString("¥%1").arg(price, 0, 'f', 2)));
             m_trainTable->setItem(row, 6, new QTableWidgetItem(QString::number(seatType["availableSeats"].toInt())));
             m_trainTable->setItem(row, 7, new QTableWidgetItem(QString::number(seatType["totalSeats"].toInt())));
+            
+            // 调试输出
+            qDebug() << "显示车次:" << train["name"].toString() 
+                     << "座位类型:" << seatType["type"].toString()
+                     << "价格:" << price
+                     << "余票:" << seatType["availableSeats"].toInt();
             
             // 如果没有余票，将整行设置为灰色
             if (seatType["availableSeats"].toInt() == 0) {

@@ -561,4 +561,6 @@ CMakeFiles/TrainBookingClient.dir/MainWindow.cpp.obj: \
  C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/bits/fs_ops.h \
  C:/Qt/6.9.1/mingw_64/include/QtCore/qfileinfo.h \
  C:/Qt/6.9.1/mingw_64/include/QtCore/QStandardPaths \
- C:/Qt/6.9.1/mingw_64/include/QtCore/qstandardpaths.h
+ C:/Qt/6.9.1/mingw_64/include/QtCore/qstandardpaths.h \
+ C:/Qt/6.9.1/mingw_64/include/QtCore/QDebug \
+ C:/Qt/6.9.1/mingw_64/include/QtCore/qdebug.h

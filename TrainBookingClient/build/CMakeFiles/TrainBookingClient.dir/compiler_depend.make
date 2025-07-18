@@ -741,6 +741,7 @@ TrainBookingClient_autogen/timestamp: C:/Program\ Files/CMake/bin/cmake.exe \
 
 CMakeFiles/TrainBookingClient.dir/MainWindow.cpp.obj: C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.cpp \
   C:/Qt/6.9.1/mingw_64/include/QtCore/QDate \
+  C:/Qt/6.9.1/mingw_64/include/QtCore/QDebug \
   C:/Qt/6.9.1/mingw_64/include/QtCore/QDir \
   C:/Qt/6.9.1/mingw_64/include/QtCore/QFlags \
   C:/Qt/6.9.1/mingw_64/include/QtCore/QIODevice \
@@ -1285,7 +1286,6 @@ CMakeFiles/TrainBookingClient.dir/MainWindow.cpp.obj: C:/Users/admin/Desktop/pro
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
   C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wctype.h \
-  TrainBookingClient_autogen/include/MainWindow.moc \
   C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.h
 
 CMakeFiles/TrainBookingClient.dir/TrainBookingClient_autogen/mocs_compilation.cpp.obj: TrainBookingClient_autogen/mocs_compilation.cpp \
@@ -3200,8 +3200,6 @@ C:/Qt/6.9.1/mingw_64/lib/cmake/Qt6Gui/Qt6GuiDependencies.cmake:
 
 C:/Qt/6.9.1/mingw_64/lib/cmake/Qt6/Qt6Dependencies.cmake:
 
-TrainBookingClient_autogen/include/MainWindow.moc:
-
 C:/Qt/6.9.1/mingw_64/include/QtWidgets/qabstractitemview.h:
 
 C:/Qt/6.9.1/mingw_64/include/QtWidgets/qtablewidget.h:
@@ -3571,6 +3569,8 @@ C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/bits/allo
 C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/bits/allocator.h:
 
 C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/bits/atomic_base.h:
+
+C:/Qt/6.9.1/mingw_64/include/QtCore/QDebug:
 
 C:/Qt/Tools/mingw1310_64/lib/gcc/x86_64-w64-mingw32/13.1.0/include/c++/tr1/legendre_function.tcc:
 

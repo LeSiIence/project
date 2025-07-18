@@ -743,6 +743,7 @@ C:/Users/admin/Desktop/project/TrainBookingClient/build/TrainBookingClient_autog
 CMakeFiles/TrainBookingClient.dir/MainWindow.cpp.obj
  C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.cpp
  C:/Qt/6.9.1/mingw_64/include/QtCore/QDate
+ C:/Qt/6.9.1/mingw_64/include/QtCore/QDebug
  C:/Qt/6.9.1/mingw_64/include/QtCore/QDir
  C:/Qt/6.9.1/mingw_64/include/QtCore/QFlags
  C:/Qt/6.9.1/mingw_64/include/QtCore/QIODevice
@@ -1287,7 +1288,6 @@ CMakeFiles/TrainBookingClient.dir/MainWindow.cpp.obj
  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h
  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h
  C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wctype.h
- C:/Users/admin/Desktop/project/TrainBookingClient/build/TrainBookingClient_autogen/include/MainWindow.moc
  C:/Users/admin/Desktop/project/TrainBookingClient/MainWindow.h
 
 CMakeFiles/TrainBookingClient.dir/TrainBookingClient_autogen/mocs_compilation.cpp.obj

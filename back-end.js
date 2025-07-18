@@ -64,7 +64,7 @@ const { initDatabase, insertTestData } = require('./manage_database');
 
 // 根路径重定向
 app.get('/', (req, res) => {
-    res.redirect('/mysql-test.html');
+    res.redirect('/booking-system.html');
 });
 
 
@@ -379,7 +379,7 @@ async function getAvailableSeats(scheduleId, seatType, fromStation, toStation) {
         }
         
 
-        
+
         const { from_order, to_order } = trainInfo[0];
         
         // 获取在这个区间内已经被占用的座位数量
