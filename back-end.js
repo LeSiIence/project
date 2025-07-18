@@ -440,7 +440,7 @@ async function getAvailableSeats(scheduleId, seatType, fromStation, toStation) {
             JOIN train_stations ts_from ON c.train_id = ts_from.train_id AND ts_from.station_name = sa.from_station
             JOIN train_stations ts_to ON c.train_id = ts_to.train_id AND ts_to.station_name = sa.to_station
             WHERE sa.schedule_id = ? AND s.seat_type = ? AND sa.is_deleted = FALSE
-            AND NOT (ts_to.station_order <= ? OR ts_from.station_order >= ?)
+            AND NOT (ts_to.station_order <= ? OR ts_from.station_order >= ?) //发生区间冲突，则不分配座位
         `, [scheduleId, seatType, from_order, to_order]);
         
         const occupiedSeats = occupiedSeatsRows[0].occupied || 0;
